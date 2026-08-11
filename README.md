@@ -32,12 +32,13 @@ npx convex dev
 
 This creates your Convex deployment and writes `NEXT_PUBLIC_CONVEX_URL` to `.env.local`.
 
-Generate an auth secret:
+Set up Convex Auth (JWT keys on your deployment):
 
 ```bash
-openssl rand -base64 32
-# Add as AUTH_SECRET in .env.local and Convex dashboard
+npx @convex-dev/auth
 ```
+
+For production, run the same command with `--prod` (or copy `JWT_PRIVATE_KEY`, `JWKS`, and `SITE_URL` from dev to prod in the Convex dashboard).
 
 ### 4. Run Next.js
 
@@ -52,6 +53,28 @@ Open [http://localhost:3000](http://localhost:3000).
 See [.env.example](./.env.example) for the full list.
 
 Set Twilio and Cloudinary secrets in both `.env.local` (Next.js) and the Convex dashboard (for backend functions).
+
+### Vercel (production frontend)
+
+Set these in **Vercel → Project → Settings → Environment Variables**, then **redeploy** (required for `NEXT_PUBLIC_*` vars):
+
+| Variable | Value |
+|----------|--------|
+| `NEXT_PUBLIC_CONVEX_URL` | `https://fiery-roadrunner-823.convex.cloud` (your **prod** Convex URL) |
+| `NEXT_PUBLIC_APP_URL` | `https://fota-whatsapp-invite.vercel.app` |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | your Cloudinary cloud name |
+| `CLOUDINARY_CLOUD_NAME` | same cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+
+Do **not** use the dev Convex URL (`adorable-minnow-162`) on Vercel.
+
+On **Convex production** deployment, also set:
+
+- `JWT_PRIVATE_KEY` + `JWKS` — run `npx @convex-dev/auth --prod`
+- `SITE_URL` — `https://fota-whatsapp-invite.vercel.app` (your Vercel URL)
+- `NEXT_PUBLIC_APP_URL` — same Vercel URL
+- Twilio vars (same as dev)
 
 ## Deployment
 

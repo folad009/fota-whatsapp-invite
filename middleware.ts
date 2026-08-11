@@ -3,8 +3,10 @@ import {
   createRouteMatcher,
   nextjsMiddlewareRedirect,
 } from "@convex-dev/auth/nextjs/server";
+import { getConvexUrl } from "@/lib/convex-url";
 
 const isProtectedPage = createRouteMatcher(["/dashboard(.*)"]);
+const convexUrl = getConvexUrl();
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   if (isProtectedPage(request) && !(await convexAuth.isAuthenticated())) {
@@ -20,7 +22,7 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   }
 
   return undefined;
-});
+}, { convexUrl });
 
 export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
