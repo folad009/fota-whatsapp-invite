@@ -9,16 +9,16 @@ const isProtectedPage = createRouteMatcher(["/dashboard(.*)"]);
 const convexUrl = getConvexUrl();
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+  const path = request.nextUrl.pathname;
+  const isAuthPage = path === "/sign-in" || path === "/sign-up";
+
   if (isProtectedPage(request) && !(await convexAuth.isAuthenticated())) {
     return nextjsMiddlewareRedirect(request, "/sign-in");
   }
 
-  if (
-    (request.nextUrl.pathname === "/sign-in" ||
-      request.nextUrl.pathname === "/sign-up") &&
-    (await convexAuth.isAuthenticated())
-  ) {
-    return nextjsMiddlewareRedirect(request, "/dashboard");
+  // Skip auth checks on sign-in/sign-up to avoid stale-cookie discovery errors.
+  if (isAuthPage) {
+    return undefined;
   }
 
   return undefined;
