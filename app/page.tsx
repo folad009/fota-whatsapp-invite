@@ -9,14 +9,9 @@ export default function HomePage() {
           <span className="text-lg font-semibold text-primary">
             WhatsApp Invites
           </span>
-          <div className="flex gap-2">
-            <Link href="/sign-in">
-              <Button variant="ghost">Sign in</Button>
-            </Link>
-            <Link href="/sign-up">
-              <Button>Get started</Button>
-            </Link>
-          </div>
+          <Link href="/sign-in">
+            <Button>Sign in</Button>
+          </Link>
         </div>
       </header>
 
@@ -28,14 +23,9 @@ export default function HomePage() {
           Create events, send beautiful image invites, collect registrations, and
           confirm attendance — all through WhatsApp.
         </p>
-        <div className="mt-8 flex gap-4">
-          <Link href="/sign-up">
-            <Button size="lg">Create your first event</Button>
-          </Link>
+        <div className="mt-8">
           <Link href="/sign-in">
-            <Button size="lg" variant="outline">
-              Sign in
-            </Button>
+            <Button size="lg">Sign in to your dashboard</Button>
           </Link>
         </div>
 

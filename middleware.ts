@@ -10,7 +10,7 @@ const convexUrl = getConvexUrl();
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const path = request.nextUrl.pathname;
-  const isAuthPage = path === "/sign-in" || path === "/sign-up";
+  const isAuthPage = path === "/sign-in";
 
   if (isProtectedPage(request) && !(await convexAuth.isAuthenticated())) {
     return nextjsMiddlewareRedirect(request, "/sign-in");

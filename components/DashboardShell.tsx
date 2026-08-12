@@ -1,27 +1,49 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Events", match: (path: string) => path === "/dashboard" },
-  {
-    href: "/dashboard/events/new",
-    label: "New event",
-    match: (path: string) => path === "/dashboard/events/new",
-  },
-] as const;
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const router = useRouter();
   const pathname = usePathname();
+  const me = useQuery(api.users.getMe);
+
+  const navItems = useMemo(() => {
+    const items: Array<{
+      href: string;
+      label: string;
+      match: (path: string) => boolean;
+    }> = [
+      {
+        href: "/dashboard",
+        label: "Events",
+        match: (path: string) => path === "/dashboard",
+      },
+      {
+        href: "/dashboard/events/new",
+        label: "New event",
+        match: (path: string) => path === "/dashboard/events/new",
+      },
+    ];
+
+    if (me?.role === "admin") {
+      items.push({
+        href: "/dashboard/users",
+        label: "Users",
+        match: (path: string) => path.startsWith("/dashboard/users"),
+      });
+    }
+
+    return items;
+  }, [me?.role]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

@@ -3,7 +3,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { clearConvexAuthStorage } from "@/lib/clear-auth-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,17 +15,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
+export function AuthForm() {
   const { signIn, signOut } = useAuthActions();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Clear stale tokens from localStorage (dev/prod mixups break websocket auth).
   useEffect(() => {
     clearConvexAuthStorage();
     setReady(true);
@@ -45,15 +42,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
         // Ignore — cookies are cleared even when the session is invalid
       }
 
-      const params: Record<string, string> = {
+      const result = await signIn("password", {
         email,
         password,
-        flow: mode,
-      };
-      if (mode === "signUp") {
-        params.name = name;
-      }
-      const result = await signIn("password", params);
+        flow: "signIn",
+      });
       if (result.signingIn) {
         router.push("/dashboard");
         router.refresh();
@@ -78,26 +71,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{mode === "signIn" ? "Sign in" : "Create account"}</CardTitle>
-        <CardDescription>
-          {mode === "signIn"
-            ? "Access your event dashboard"
-            : "Start sending WhatsApp event invites"}
-        </CardDescription>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Access your event dashboard</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signUp" && (
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -121,25 +99,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Please wait..." : mode === "signIn" ? "Sign in" : "Sign up"}
+            {loading ? "Please wait..." : "Sign in"}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          {mode === "signIn" ? (
-            <>
-              No account?{" "}
-              <Link href="/sign-up" className="text-primary underline">
-                Sign up
-              </Link>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <Link href="/sign-in" className="text-primary underline">
-                Sign in
-              </Link>
-            </>
-          )}
+          Need an account? Contact your administrator.
         </p>
       </CardContent>
     </Card>

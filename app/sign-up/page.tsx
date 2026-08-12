@@ -1,16 +1,5 @@
-import { AuthForm } from "@/components/AuthForm";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export default function SignUpPage() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4">
-      <Link
-        href="/"
-        className="mb-8 text-lg font-semibold text-primary"
-      >
-        WhatsApp Invites
-      </Link>
-      <AuthForm mode="signUp" />
-    </div>
-  );
+  redirect("/sign-in");
 }

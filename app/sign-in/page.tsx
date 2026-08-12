@@ -10,7 +10,7 @@ export default function SignInPage() {
       >
         WhatsApp Invites
       </Link>
-      <AuthForm mode="signIn" />
+      <AuthForm />
     </div>
   );
 }
