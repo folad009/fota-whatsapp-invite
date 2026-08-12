@@ -4,7 +4,6 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { EventRecord } from "@/lib/types";
-import { DashboardShell } from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +19,7 @@ export default function DashboardPage() {
   const events = useQuery(api.events.list);
 
   return (
-    <DashboardShell>
+    <>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Your events</h1>
@@ -68,6 +67,6 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
-    </DashboardShell>
+    </>
   );
 }

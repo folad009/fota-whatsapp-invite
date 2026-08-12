@@ -16,9 +16,8 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
     return nextjsMiddlewareRedirect(request, "/sign-in");
   }
 
-  // Skip auth checks on sign-in/sign-up to avoid stale-cookie discovery errors.
-  if (isAuthPage) {
-    return undefined;
+  if (isAuthPage && (await convexAuth.isAuthenticated())) {
+    return nextjsMiddlewareRedirect(request, "/dashboard");
   }
 
   return undefined;

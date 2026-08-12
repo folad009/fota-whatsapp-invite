@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { DashboardShell } from "@/components/DashboardShell";
 import { EventForm } from "@/components/EventForm";
 import { InviteUpload } from "@/components/InviteUpload";
 import { InviteeTable } from "@/components/InviteeTable";
@@ -55,44 +54,38 @@ export default function EventDetailPage() {
   };
 
   if (event === undefined) {
-    return (
-      <DashboardShell>
-        <p className="text-muted-foreground">Loading event...</p>
-      </DashboardShell>
-    );
+    return <p className="text-muted-foreground">Loading event...</p>;
   }
 
   if (editing) {
     return (
-      <DashboardShell>
-        <div className="mx-auto max-w-2xl">
-          <EventForm
-            eventId={eventId}
-            initial={{
-              title: event.title,
-              description: event.description,
-              date: event.date,
-              location: event.location,
-              imageUrl: event.imageUrl,
-              cloudinaryPublicId: event.cloudinaryPublicId,
-              capacity: event.capacity,
-              customFields: event.customFields,
-            }}
-          />
-          <Button
-            variant="ghost"
-            className="mt-4"
-            onClick={() => setEditing(false)}
-          >
-            Cancel editing
-          </Button>
-        </div>
-      </DashboardShell>
+      <div className="mx-auto max-w-2xl">
+        <EventForm
+          eventId={eventId}
+          initial={{
+            title: event.title,
+            description: event.description,
+            date: event.date,
+            location: event.location,
+            imageUrl: event.imageUrl,
+            cloudinaryPublicId: event.cloudinaryPublicId,
+            capacity: event.capacity,
+            customFields: event.customFields,
+          }}
+        />
+        <Button
+          variant="ghost"
+          className="mt-4"
+          onClick={() => setEditing(false)}
+        >
+          Cancel editing
+        </Button>
+      </div>
     );
   }
 
   return (
-    <DashboardShell>
+    <>
       <div className="mb-6">
         <Link
           href="/dashboard"
@@ -212,6 +205,6 @@ export default function EventDetailPage() {
         <InviteUpload eventId={eventId} />
         {invitees && <InviteeTable eventId={eventId} invitees={invitees} />}
       </div>
-    </DashboardShell>
+    </>
   );
 }

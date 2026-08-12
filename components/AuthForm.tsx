@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { clearConvexAuthStorage } from "@/lib/clear-auth-storage";
@@ -17,6 +18,7 @@ import {
 
 export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
   const { signIn, signOut } = useAuthActions();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -51,7 +53,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
       if (mode === "signUp") {
         params.name = name;
       }
-      await signIn("password", params);
+      const result = await signIn("password", params);
+      if (result.signingIn) {
+        router.push("/dashboard");
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
