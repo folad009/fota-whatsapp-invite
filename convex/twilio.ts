@@ -77,9 +77,11 @@ export const sendInvite = internalAction({
     }
 
     const { invite, event } = data;
-    const registerUrl = `${getAppUrl()}/r/${invite.token}`;
+    const registerUrl = `${getAppUrl().replace(/\/$/, "")}/r/${invite.token}`;
     const inviteeName = invite.inviteeName ?? "there";
     const eventDate = formatEventDate(event.date);
+    // Twilio button templates use a fixed URL like …/r/{{6}} — pass token only, not full URL.
+    const registerPath = invite.token;
 
     try {
       let result;
@@ -96,7 +98,7 @@ export const sendInvite = internalAction({
               "3": event.title,
               "4": eventDate,
               "5": event.location,
-              "6": registerUrl,
+              "6": registerPath,
             },
           });
         }
@@ -113,7 +115,7 @@ export const sendInvite = internalAction({
               "2": event.title,
               "3": eventDate,
               "4": event.location,
-              "5": registerUrl,
+              "5": registerPath,
             },
           });
         } else {

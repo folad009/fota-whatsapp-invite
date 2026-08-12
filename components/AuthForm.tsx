@@ -3,6 +3,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { clearConvexAuthStorage } from "@/lib/clear-auth-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,21 +24,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Clear stale auth cookies (e.g. from dev or failed attempts) before sign-in.
+  // Clear stale tokens from localStorage (dev/prod mixups break websocket auth).
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        await signOut();
-      } catch {
-        // signOut clears cookies even when the session is invalid
-      }
-      if (!cancelled) setReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [signOut]);
+    clearConvexAuthStorage();
+    setReady(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +36,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
     setLoading(true);
 
     try {
+      clearConvexAuthStorage();
       try {
         await signOut();
       } catch {
-        // Ignore — ensures no stale token is sent with the sign-in request
+        // Ignore — cookies are cleared even when the session is invalid
       }
 
       const params: Record<string, string> = {

@@ -8,13 +8,16 @@ export const metadata: Metadata = {
   description: "Send event invites via WhatsApp and manage RSVPs",
 };
 
+const convexStorageNamespace =
+  process.env.NEXT_PUBLIC_CONVEX_URL?.replace(/\/$/, "") ?? undefined;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ConvexAuthNextjsServerProvider>
+    <ConvexAuthNextjsServerProvider storageNamespace={convexStorageNamespace}>
       <html lang="en">
         <body className="min-h-screen antialiased">
           <ConvexClientProvider>{children}</ConvexClientProvider>
