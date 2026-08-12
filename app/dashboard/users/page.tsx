@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/convex/_generated/api";
 import { UserAdminPanel } from "@/components/UserAdminPanel";
 
 export default function UsersPage() {
-  const me = useQuery(api.users.getMe);
+  const { isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
   const router = useRouter();
 
   useEffect(() => {

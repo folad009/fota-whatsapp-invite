@@ -14,7 +14,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const pathname = usePathname();
-  const me = useQuery(api.users.getMe);
+  const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
 
   const navItems = useMemo(() => {
     const items: Array<{

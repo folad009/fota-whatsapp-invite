@@ -18,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <ConvexAuthNextjsServerProvider storageNamespace={convexStorageNamespace}>
-      <html lang="en">
-        <body className="min-h-screen antialiased">
+      <html lang="en" suppressHydrationWarning>
+        <body className="min-h-screen antialiased" suppressHydrationWarning>
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </body>
       </html>
