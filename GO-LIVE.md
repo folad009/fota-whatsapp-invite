@@ -63,7 +63,24 @@ npx convex run --prod users:bootstrapAdmin '{"email":"YOUR_EMAIL"}'
 4. Open registration link from WhatsApp
 5. Confirm RSVP WhatsApp confirmation arrives
 
-## Sandbox vs production
+## Twilio media template (event invite)
+
+Your template media URL should be:
+
+```text
+https://res.cloudinary.com/dfbd7mn3p/image/upload/{{1}}.jpg
+```
+
+Sample for `{{1}}`:
+
+```text
+event-banners/vfjutiaqsbkszqs5f9kz
+```
+
+Do **not** hardcode a Cloudinary version (`v1786462327`) in the template — new uploads get new versions and media will fail with error **63019**.
+
+If your template uses `.../event-banners/{{1}}` instead, the app sends the filename only (e.g. `vfjutiaqsbkszqs5f9kz.jpg`).
+
 
 | | Sandbox | Production |
 |---|---------|------------|

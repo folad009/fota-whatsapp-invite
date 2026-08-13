@@ -28,6 +28,29 @@ function formatEventDate(timestamp: number): string {
   });
 }
 
+/** Twilio media template uses .../event-banners/{{1}} — pass filename only (e.g. abc.jpg). */
+function getWhatsAppMediaVariable(
+  cloudinaryPublicId: string,
+  imageUrl?: string
+): string {
+  if (imageUrl) {
+    const match = imageUrl.match(/\/upload\/(.+?)(?:\?|$)/);
+    if (match) {
+      const uploadPath = match[1];
+      const bannerSuffix = uploadPath.split("/event-banners/").pop();
+      if (bannerSuffix) {
+        return bannerSuffix;
+      }
+    }
+  }
+
+  const filename =
+    cloudinaryPublicId.split("/").pop() ?? cloudinaryPublicId;
+  return /\.(jpe?g|png|webp)$/i.test(filename)
+    ? filename
+    : `${filename}.jpg`;
+}
+
 async function sendWhatsAppMessage(params: {
   to: string;
   contentSid?: string;
@@ -93,7 +116,10 @@ export const sendInvite = internalAction({
             to: invite.phone,
             contentSid,
             contentVariables: {
-              "1": event.cloudinaryPublicId,
+              "1": getWhatsAppMediaVariable(
+                event.cloudinaryPublicId,
+                event.imageUrl
+              ),
               "2": inviteeName,
               "3": event.title,
               "4": eventDate,
