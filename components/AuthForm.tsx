@@ -7,15 +7,9 @@ import { clearConvexAuthStorage } from "@/lib/clear-auth-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 
-export function AuthForm() {
+export function AuthForm({ className }: { className?: string }) {
   const { signIn, signOut } = useAuthActions();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -60,52 +54,88 @@ export function AuthForm() {
 
   if (!ready) {
     return (
-      <Card className="w-full max-w-md">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Loading...
-        </CardContent>
-      </Card>
+      <div className={cn("w-full max-w-md animate-pulse space-y-4", className)}>
+        <div className="h-10 rounded-lg bg-muted" />
+        <div className="h-12 rounded-lg bg-muted" />
+        <div className="h-12 rounded-lg bg-muted" />
+        <div className="h-12 rounded-lg bg-muted" />
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Access your event dashboard</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Please wait..." : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Need an account? Contact your administrator.
+    <div className={cn("w-full max-w-md", className)}>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Hi Organizer
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Welcome to WhatsApp Invites
         </p>
-      </CardContent>
-    </Card>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="sr-only">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            className="h-12 rounded-xl border-border/80 px-4 text-base placeholder:text-muted-foreground/70"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="sr-only">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="current-password"
+            className="h-12 rounded-xl border-border/80 px-4 text-base placeholder:text-muted-foreground/70"
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <span
+            className="cursor-not-allowed text-sm text-muted-foreground/70"
+            title="Contact your administrator to reset your password"
+          >
+            Forgot password?
+          </span>
+        </div>
+
+        {error && (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        )}
+
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 w-full rounded-xl text-base font-semibold"
+          disabled={loading}
+        >
+          {loading ? "Please wait..." : "Login"}
+        </Button>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-muted-foreground">
+        Need an account? Contact your administrator.
+      </p>
+    </div>
   );
 }

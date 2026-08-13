@@ -73,20 +73,12 @@ export const handleWebhook = httpAction(async (ctx, request) => {
 
   // Delivery status callback
   if (messageStatus && messageSid) {
-    const existingLog = await ctx.runQuery(internal.messageLogs.getMessageBySid, {
+    await ctx.runMutation(internal.messageLogs.handleTwilioStatusCallback, {
       twilioSid: messageSid,
+      messageStatus,
+      errorCode: params.ErrorCode,
+      errorMessage: params.ErrorMessage,
     });
-
-    if (!existingLog) {
-      // Try to update invite by message sid
-      // Status updates handled via invite lookup in future; log for now
-      await ctx.runMutation(internal.messageLogs.logMessage, {
-        direction: "inbound",
-        body: `Status update: ${messageStatus}`,
-        twilioSid: messageSid,
-        status: messageStatus,
-      });
-    }
 
     return new Response("<Response></Response>", {
       headers: { "Content-Type": "text/xml" },

@@ -155,3 +155,98 @@ export const getMessageBySid = internalQuery({
     return log?._id ?? null;
   },
 });
+
+export const getInviteByTwilioSid = internalQuery({
+  args: { twilioSid: v.string() },
+  returns: v.union(v.id("invites"), v.null()),
+  handler: async (ctx, args) => {
+    const invite = await ctx.db
+      .query("invites")
+      .withIndex("by_twilio_message_sid", (q) =>
+        q.eq("twilioMessageSid", args.twilioSid)
+      )
+      .unique();
+    return invite?._id ?? null;
+  },
+});
+
+function mapTwilioStatusToDelivery(
+  status: string
+):
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "read"
+  | null {
+  switch (status.toLowerCase()) {
+    case "sent":
+    case "queued":
+    case "sending":
+      return "sent";
+    case "delivered":
+      return "delivered";
+    case "read":
+      return "read";
+    case "failed":
+    case "undelivered":
+      return "failed";
+    default:
+      return null;
+  }
+}
+
+export const handleTwilioStatusCallback = internalMutation({
+  args: {
+    twilioSid: v.string(),
+    messageStatus: v.string(),
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const deliveryStatus = mapTwilioStatusToDelivery(args.messageStatus);
+    if (!deliveryStatus) {
+      return null;
+    }
+
+    const invite = await ctx.db
+      .query("invites")
+      .withIndex("by_twilio_message_sid", (q) =>
+        q.eq("twilioMessageSid", args.twilioSid)
+      )
+      .unique();
+
+    if (invite) {
+      const patch: Record<string, unknown> = { deliveryStatus };
+      if (deliveryStatus === "failed") {
+        const reason =
+          args.errorMessage ??
+          (args.errorCode ? `Twilio error ${args.errorCode}` : undefined);
+        if (reason) patch.failureReason = reason;
+      }
+      await ctx.db.patch("invites", invite._id, patch);
+    }
+
+    const existingLog = await ctx.db
+      .query("messageLogs")
+      .withIndex("by_twilio_sid", (q) => q.eq("twilioSid", args.twilioSid))
+      .unique();
+
+    if (existingLog) {
+      await ctx.db.patch("messageLogs", existingLog._id, {
+        status: args.messageStatus,
+      });
+    } else {
+      await ctx.db.insert("messageLogs", {
+        inviteId: invite?._id,
+        direction: "inbound",
+        body: `Status update: ${args.messageStatus}`,
+        twilioSid: args.twilioSid,
+        status: args.messageStatus,
+        createdAt: Date.now(),
+      });
+    }
+
+    return null;
+  },
+});

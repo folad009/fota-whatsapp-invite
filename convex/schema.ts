@@ -79,7 +79,8 @@ export default defineSchema({
     .index("by_event", ["eventId"])
     .index("by_token", ["token"])
     .index("by_phone", ["phone"])
-    .index("by_event_and_phone", ["eventId", "phone"]),
+    .index("by_event_and_phone", ["eventId", "phone"])
+    .index("by_twilio_message_sid", ["twilioMessageSid"]),
 
   registrations: defineTable({
     eventId: v.id("events"),

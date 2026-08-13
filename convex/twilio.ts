@@ -115,7 +115,7 @@ export const sendInvite = internalAction({
               "2": event.title,
               "3": eventDate,
               "4": event.location,
-              "5": registerPath,
+              "5": registerUrl,
             },
           });
         } else {
