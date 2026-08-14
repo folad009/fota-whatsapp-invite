@@ -87,6 +87,24 @@ async function sendWhatsAppMessage(params: {
   return { sid: message.sid, status: message.status };
 }
 
+function isMissingContentTemplateError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /content was not found|20404|not found/i.test(message);
+}
+
+async function trySendWhatsAppMessage(
+  params: Parameters<typeof sendWhatsAppMessage>[0]
+): Promise<{ sid: string; status: string } | null> {
+  try {
+    return await sendWhatsAppMessage(params);
+  } catch (error) {
+    if (isMissingContentTemplateError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export const sendInvite = internalAction({
   args: { inviteId: v.id("invites") },
   returns: v.null(),
@@ -112,7 +130,7 @@ export const sendInvite = internalAction({
       if (event.imageUrl && event.cloudinaryPublicId) {
         const contentSid = process.env.TWILIO_CONTENT_EVENT_INVITE;
         if (contentSid) {
-          result = await sendWhatsAppMessage({
+          result = await trySendWhatsAppMessage({
             to: invite.phone,
             contentSid,
             contentVariables: {
@@ -133,7 +151,7 @@ export const sendInvite = internalAction({
       if (!result) {
         const fallbackSid = process.env.TWILIO_CONTENT_TEXT_FALLBACK;
         if (fallbackSid) {
-          result = await sendWhatsAppMessage({
+          result = await trySendWhatsAppMessage({
             to: invite.phone,
             contentSid: fallbackSid,
             contentVariables: {
@@ -144,12 +162,14 @@ export const sendInvite = internalAction({
               "5": registerUrl,
             },
           });
-        } else {
-          result = await sendWhatsAppMessage({
-            to: invite.phone,
-            body: `Hi ${inviteeName}, you're invited to *${event.title}*!\n\nDate: ${eventDate}\nLocation: ${event.location}\n\nRegister: ${registerUrl}\n\nReply DECLINE if you can't attend.`,
-          });
         }
+      }
+
+      if (!result) {
+        result = await sendWhatsAppMessage({
+          to: invite.phone,
+          body: `Hi ${inviteeName}, you're invited to *${event.title}*!\n\nDate: ${eventDate}\nLocation: ${event.location}\n\nRegister: ${registerUrl}\n\nReply DECLINE if you can't attend.`,
+        });
       }
 
       await ctx.runMutation(internal.messageLogs.updateInviteDelivery, {

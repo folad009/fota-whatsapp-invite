@@ -81,6 +81,31 @@ Do **not** hardcode a Cloudinary version (`v1786462327`) in the template — new
 
 If your template uses `.../event-banners/{{1}}` instead, the app sends the filename only (e.g. `vfjutiaqsbkszqs5f9kz.jpg`).
 
+## Local dev (localhost + sandbox)
+
+`.env.local` should use **dev** Convex and sandbox:
+
+| Variable | Value |
+|----------|--------|
+| `NEXT_PUBLIC_CONVEX_URL` | `https://adorable-minnow-162.convex.cloud` |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` |
+| `TWILIO_WHATSAPP_FROM` | `whatsapp:+14155238886` |
+
+Dev Convex env (sync template SIDs from `.env.local` — stale SIDs cause **Content was not found**):
+
+```bash
+npx convex env set TWILIO_WHATSAPP_FROM "whatsapp:+14155238886"
+npx convex env set NEXT_PUBLIC_APP_URL "http://localhost:3000"
+npx convex env set TWILIO_CONTENT_EVENT_INVITE "HXcf6831be02490cde95ece1dbf68fd335"
+npx convex env set TWILIO_CONTENT_TEXT_FALLBACK "HX7769f1b14e23c95c37b22aba6e5869a8"
+npx convex env set TWILIO_CONTENT_RSVP_CONFIRM "HXb9e51e42539f8f34bf365d9c469c858a"
+npx convex env set TWILIO_CONTENT_REMINDER "HX9739bce19937da7613b6cfa0e850a263"
+```
+
+Run `npx convex dev` + `npm run dev`. Each test phone must send `join <code>` to **+1 415 523 8886** once.
+
+Production (Vercel / prod Convex) stays on `+18322746672` and the Vercel URL.
+
 
 | | Sandbox | Production |
 |---|---------|------------|

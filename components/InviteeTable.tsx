@@ -10,6 +10,67 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { copyToClipboard, exportToCsv, getRegistrationUrl } from "@/lib/utils";
 
+const DELIVERED_STATUSES = ["sent", "delivered", "read"] as const;
+
+function canResendDelivery(inv: InviteeRecord): boolean {
+  return inv.deliveryStatus === "failed" || inv.deliveryStatus === "pending";
+}
+
+function canResendInviteReminder(inv: InviteeRecord): boolean {
+  const delivered = DELIVERED_STATUSES.includes(
+    inv.deliveryStatus as (typeof DELIVERED_STATUSES)[number]
+  );
+  const rsvpPending = !inv.rsvpStatus || inv.rsvpStatus === "pending";
+  const attendanceUnknown =
+    !inv.attendanceStatus || inv.attendanceStatus === "unknown";
+  return delivered && rsvpPending && attendanceUnknown;
+}
+
+function InviteeResendActions({
+  inv,
+  loadingId,
+  onResend,
+  className,
+}: {
+  inv: InviteeRecord;
+  loadingId: string | null;
+  onResend: (inviteId: string) => void;
+  className?: string;
+}) {
+  const showDelivery = canResendDelivery(inv);
+  const showReminder = canResendInviteReminder(inv);
+  if (!showDelivery && !showReminder) {
+    return null;
+  }
+
+  const loading = loadingId === inv._id;
+
+  return (
+    <div className={className ?? "flex flex-wrap gap-1"}>
+      {showDelivery && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={loading}
+          onClick={() => onResend(inv._id)}
+        >
+          {loading ? "..." : "Resend"}
+        </Button>
+      )}
+      {showReminder && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={loading}
+          onClick={() => onResend(inv._id)}
+        >
+          {loading ? "..." : "Resend invite"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function InviteeTable({
   eventId,
   invitees,
@@ -192,17 +253,11 @@ export function InviteeTable({
                     <Badge status={inv.attendanceStatus ?? "unknown"} />
                   </td>
                   <td className="px-4 py-3">
-                    {(inv.deliveryStatus === "failed" ||
-                      inv.deliveryStatus === "pending") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={loadingId === inv._id}
-                        onClick={() => handleResend(inv._id)}
-                      >
-                        {loadingId === inv._id ? "..." : "Resend"}
-                      </Button>
-                    )}
+                    <InviteeResendActions
+                      inv={inv}
+                      loadingId={loadingId}
+                      onResend={handleResend}
+                    />
                   </td>
                 </tr>
               );
@@ -238,26 +293,20 @@ export function InviteeTable({
                 <p className="break-all font-mono text-xs text-muted-foreground">
                   {url}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 min-w-[7rem]"
                     onClick={() => handleCopyLink(inv._id, inv.token)}
                   >
                     {copiedId === inv._id ? "Copied!" : "Copy link"}
                   </Button>
-                  {(inv.deliveryStatus === "failed" ||
-                    inv.deliveryStatus === "pending") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={loadingId === inv._id}
-                      onClick={() => handleResend(inv._id)}
-                    >
-                      {loadingId === inv._id ? "..." : "Resend"}
-                    </Button>
-                  )}
+                  <InviteeResendActions
+                    inv={inv}
+                    loadingId={loadingId}
+                    onResend={handleResend}
+                  />
                 </div>
               </div>
               {inv.failureReason && (
