@@ -51,6 +51,17 @@ function getWhatsAppMediaVariable(
     : `${filename}.jpg`;
 }
 
+function formatEventDescription(description?: string): string {
+  if (!description?.trim()) {
+    return "No additional details provided.";
+  }
+  const trimmed = description.trim();
+  if (trimmed.length > 500) {
+    return `${trimmed.slice(0, 497)}...`;
+  }
+  return trimmed;
+}
+
 async function sendWhatsAppMessage(params: {
   to: string;
   contentSid?: string;
@@ -121,6 +132,7 @@ export const sendInvite = internalAction({
     const registerUrl = `${getAppUrl().replace(/\/$/, "")}/r/${invite.token}`;
     const inviteeName = invite.inviteeName ?? "there";
     const eventDate = formatEventDate(event.date);
+    const eventDescription = formatEventDescription(event.description);
     // Twilio button templates use a fixed URL like …/r/{{6}} — pass token only, not full URL.
     const registerPath = invite.token;
 
@@ -143,6 +155,7 @@ export const sendInvite = internalAction({
               "4": eventDate,
               "5": event.location,
               "6": registerPath,
+              "7": eventDescription,
             },
           });
         }
@@ -168,7 +181,7 @@ export const sendInvite = internalAction({
       if (!result) {
         result = await sendWhatsAppMessage({
           to: invite.phone,
-          body: `Hi ${inviteeName}, you're invited to *${event.title}*!\n\nDate: ${eventDate}\nLocation: ${event.location}\n\nRegister: ${registerUrl}\n\nReply DECLINE if you can't attend.`,
+          body: `Hi ${inviteeName}, you're invited to *${event.title}*!\n\n${eventDescription}\n\nDate: ${eventDate}\nLocation: ${event.location}\n\nRegister: ${registerUrl}\n\nReply DECLINE if you can't attend.`,
         });
       }
 
