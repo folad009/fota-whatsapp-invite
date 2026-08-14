@@ -1,5 +1,7 @@
 import { v } from "convex/values";
+import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
+import { MutationCtx } from "./_generated/server";
 import { authedMutation, authedQuery, requireEventOrganizer } from "./lib/auth";
 import { parseCsvPhones, parsePhoneList } from "./lib/phones";
 
@@ -9,6 +11,41 @@ function generateToken(): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function isEligibleForAttendanceReminder(
+  registration: Doc<"registrations"> | null,
+  eventId: Id<"events">
+): registration is Doc<"registrations"> {
+  return (
+    registration !== null &&
+    registration.eventId === eventId &&
+    registration.rsvpStatus === "registered" &&
+    registration.attendanceStatus === "unknown"
+  );
+}
+
+async function queueAttendanceReminders(
+  ctx: MutationCtx,
+  eventId: Id<"events">,
+  registrationIds: Id<"registrations">[]
+): Promise<number> {
+  const toRemind: Id<"registrations">[] = [];
+
+  for (const registrationId of registrationIds) {
+    const registration = await ctx.db.get("registrations", registrationId);
+    if (isEligibleForAttendanceReminder(registration, eventId)) {
+      toRemind.push(registration._id);
+    }
+  }
+
+  for (let i = 0; i < toRemind.length; i++) {
+    await ctx.scheduler.runAfter(i * 1000, internal.twilio.sendReminder, {
+      registrationId: toRemind[i]!,
+    });
+  }
+
+  return toRemind.length;
 }
 
 export const listByEvent = authedQuery({
@@ -43,6 +80,7 @@ export const listByEvent = authedQuery({
         rsvpStatus: registration?.rsvpStatus,
         attendanceStatus: registration?.attendanceStatus,
         registrationName: registration?.name,
+        registrationId: registration?._id,
       });
     }
 
@@ -183,10 +221,22 @@ export const resendOne = authedMutation({
 });
 
 export const sendReminders = authedMutation({
-  args: { eventId: v.id("events") },
+  args: {
+    eventId: v.id("events"),
+    registrationIds: v.optional(v.array(v.id("registrations"))),
+  },
   returns: v.object({ queued: v.number() }),
   handler: async (ctx, args) => {
     await requireEventOrganizer(ctx, args.eventId);
+
+    if (args.registrationIds && args.registrationIds.length > 0) {
+      const queued = await queueAttendanceReminders(
+        ctx,
+        args.eventId,
+        args.registrationIds
+      );
+      return { queued };
+    }
 
     const registrations = await ctx.db
       .query("registrations")
@@ -198,14 +248,32 @@ export const sendReminders = authedMutation({
         r.rsvpStatus === "registered" && r.attendanceStatus === "unknown"
     );
 
-    for (let i = 0; i < toRemind.length; i++) {
-      await ctx.scheduler.runAfter(
-        i * 1000,
-        internal.twilio.sendReminder,
-        { registrationId: toRemind[i]!._id }
-      );
+    const queued = await queueAttendanceReminders(
+      ctx,
+      args.eventId,
+      toRemind.map((r) => r._id)
+    );
+    return { queued };
+  },
+});
+
+export const sendReminderOne = authedMutation({
+  args: { registrationId: v.id("registrations") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const registration = await ctx.db.get("registrations", args.registrationId);
+    if (!registration) {
+      throw new Error("Registration not found");
+    }
+    await requireEventOrganizer(ctx, registration.eventId);
+
+    if (!isEligibleForAttendanceReminder(registration, registration.eventId)) {
+      throw new Error("This guest is not eligible for an attendance reminder");
     }
 
-    return { queued: toRemind.length };
+    await ctx.scheduler.runAfter(0, internal.twilio.sendReminder, {
+      registrationId: args.registrationId,
+    });
+    return null;
   },
 });

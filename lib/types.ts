@@ -31,4 +31,5 @@ export type InviteeRecord = {
   rsvpStatus?: "pending" | "registered" | "declined";
   attendanceStatus?: "unknown" | "confirmed" | "declined" | "checked_in";
   registrationName?: string;
+  registrationId?: string;
 };

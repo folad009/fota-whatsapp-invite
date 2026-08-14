@@ -26,6 +26,18 @@ function canResendInviteReminder(inv: InviteeRecord): boolean {
   return delivered && rsvpPending && attendanceUnknown;
 }
 
+function canSendAttendanceReminder(inv: InviteeRecord): boolean {
+  return (
+    inv.rsvpStatus === "registered" &&
+    (!inv.attendanceStatus || inv.attendanceStatus === "unknown") &&
+    !!inv.registrationId
+  );
+}
+
+function isRowSelectable(inv: InviteeRecord): boolean {
+  return canSendAttendanceReminder(inv) || canResendInviteReminder(inv);
+}
+
 function InviteeResendActions({
   inv,
   loadingId,
@@ -79,9 +91,16 @@ export function InviteeTable({
   invitees: InviteeRecord[];
 }) {
   const resendOne = useMutation(api.invites.resendOne);
+  const sendInvites = useMutation(api.invites.sendInvites);
+  const sendReminders = useMutation(api.invites.sendReminders);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [bulkLoading, setBulkLoading] = useState<"reminder" | "invite" | null>(
+    null
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [actionMessage, setActionMessage] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyAllStatus, setCopyAllStatus] = useState<"idle" | "copied" | "error">(
     "idle"
@@ -105,12 +124,100 @@ export function InviteeTable({
     });
   }, [invitees, search, statusFilter]);
 
+  const selectableFiltered = useMemo(
+    () => filtered.filter(isRowSelectable),
+    [filtered]
+  );
+
+  const selectedInvitees = useMemo(
+    () => invitees.filter((inv) => selectedIds.has(inv._id)),
+    [invitees, selectedIds]
+  );
+
+  const selectedReminderCount = useMemo(
+    () => selectedInvitees.filter(canSendAttendanceReminder).length,
+    [selectedInvitees]
+  );
+
+  const selectedInviteResendCount = useMemo(
+    () => selectedInvitees.filter(canResendInviteReminder).length,
+    [selectedInvitees]
+  );
+
+  const allSelectableSelected =
+    selectableFiltered.length > 0 &&
+    selectableFiltered.every((inv) => selectedIds.has(inv._id));
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(selectableFiltered.map((inv) => inv._id)));
+  };
+
+  const toggleSelect = (inviteId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(inviteId)) {
+        next.delete(inviteId);
+      } else {
+        next.add(inviteId);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
   const handleResend = async (inviteId: string) => {
     setLoadingId(inviteId);
+    setActionMessage("");
     try {
       await resendOne({ inviteId: inviteId as Id<"invites"> });
+      setActionMessage("Queued 1 invite");
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const handleSendRemindersToSelected = async () => {
+    const registrationIds = selectedInvitees
+      .filter(canSendAttendanceReminder)
+      .map((inv) => inv.registrationId as Id<"registrations">);
+
+    if (registrationIds.length === 0) return;
+
+    setBulkLoading("reminder");
+    setActionMessage("");
+    try {
+      const result = await sendReminders({ eventId, registrationIds });
+      setActionMessage(`Queued ${result.queued} message(s)`);
+      clearSelection();
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBulkLoading(null);
+    }
+  };
+
+  const handleResendInvitesToSelected = async () => {
+    const inviteIds = selectedInvitees
+      .filter(canResendInviteReminder)
+      .map((inv) => inv._id as Id<"invites">);
+
+    if (inviteIds.length === 0) return;
+
+    setBulkLoading("invite");
+    setActionMessage("");
+    try {
+      const result = await sendInvites({ eventId, inviteIds });
+      setActionMessage(`Queued ${result.queued} message(s)`);
+      clearSelection();
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBulkLoading(null);
     }
   };
 
@@ -192,11 +299,57 @@ export function InviteeTable({
         </div>
       </div>
 
+      {(selectedReminderCount > 0 || selectedInviteResendCount > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedReminderCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!!bulkLoading}
+              onClick={handleSendRemindersToSelected}
+            >
+              {bulkLoading === "reminder"
+                ? "Sending..."
+                : `Send reminder to selected (${selectedReminderCount})`}
+            </Button>
+          )}
+          {selectedInviteResendCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!!bulkLoading}
+              onClick={handleResendInvitesToSelected}
+            >
+              {bulkLoading === "invite"
+                ? "Sending..."
+                : `Resend invite to selected (${selectedInviteResendCount})`}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={clearSelection}>
+            Clear selection
+          </Button>
+        </div>
+      )}
+
+      {actionMessage && (
+        <p className="text-sm text-primary">{actionMessage}</p>
+      )}
+
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/50">
             <tr>
+              <th className="w-10 px-3 py-3">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input"
+                  checked={allSelectableSelected}
+                  disabled={selectableFiltered.length === 0}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all eligible invitees"
+                />
+              </th>
               <th className="px-4 py-3 text-left font-medium">Phone</th>
               <th className="px-4 py-3 text-left font-medium">Name</th>
               <th className="min-w-[200px] px-4 py-3 text-left font-medium">
@@ -211,11 +364,22 @@ export function InviteeTable({
           <tbody>
             {filtered.map((inv) => {
               const url = getRegistrationUrl(inv.token);
+              const selectable = isRowSelectable(inv);
               return (
                 <tr
                   key={inv._id}
                   className="border-b border-border last:border-0"
                 >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input disabled:opacity-40"
+                      checked={selectedIds.has(inv._id)}
+                      disabled={!selectable || !!bulkLoading}
+                      onChange={() => toggleSelect(inv._id)}
+                      aria-label={`Select ${inv.phone}`}
+                    />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">{inv.phone}</td>
                   <td className="px-4 py-3">
                     {inv.registrationName ?? inv.inviteeName ?? "—"}
@@ -270,19 +434,30 @@ export function InviteeTable({
       <div className="space-y-3 md:hidden">
         {filtered.map((inv) => {
           const url = getRegistrationUrl(inv.token);
+          const selectable = isRowSelectable(inv);
           return (
             <div
               key={inv._id}
               className="rounded-xl border border-border p-4 space-y-3"
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">
-                    {inv.registrationName ?? inv.inviteeName ?? "—"}
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {inv.phone}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-input disabled:opacity-40"
+                    checked={selectedIds.has(inv._id)}
+                    disabled={!selectable || !!bulkLoading}
+                    onChange={() => toggleSelect(inv._id)}
+                    aria-label={`Select ${inv.phone}`}
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {inv.registrationName ?? inv.inviteeName ?? "—"}
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {inv.phone}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
                   <Badge status={inv.deliveryStatus} />
