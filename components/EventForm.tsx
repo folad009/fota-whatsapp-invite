@@ -16,7 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { WHATSAPP_BANNER_ASPECT_RATIO, WHATSAPP_BANNER_TRANSFORMATION } from "@/lib/cloudinary";
+import {
+  WHATSAPP_BANNER_ASPECT_RATIO,
+  WHATSAPP_BANNER_TRANSFORMATION,
+} from "@/lib/cloudinaryConstants";
 
 const ASPECT_RATIO_TOLERANCE = 0.15;
 

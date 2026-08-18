@@ -63,15 +63,44 @@ function isDevDeployment(): boolean {
   return appUrl.includes("localhost") || appUrl.includes("127.0.0.1");
 }
 
+/**
+ * Twilio error 21656: body variables must not contain newlines, tabs, or 4+
+ * consecutive spaces. Applies to all content template variables before send.
+ */
+function sanitizeTwilioContentVariable(value: string): string {
+  return value
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
+function sanitizeTwilioContentVariables(
+  variables: Record<string, string>
+): Record<string, string> {
+  const sanitized: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(variables)) {
+    const cleaned = sanitizeTwilioContentVariable(value);
+    if (!cleaned) {
+      throw new Error(
+        `Twilio content variable "${key}" is empty after sanitization`
+      );
+    }
+    sanitized[key] = cleaned;
+  }
+
+  return sanitized;
+}
+
 function formatEventDescription(description?: string): string {
   if (!description?.trim()) {
     return "No additional details provided.";
   }
-  const trimmed = description.trim();
-  if (trimmed.length > 500) {
-    return `${trimmed.slice(0, 497)}...`;
+  const sanitized = sanitizeTwilioContentVariable(description);
+  if (sanitized.length > 500) {
+    return `${sanitized.slice(0, 497)}...`;
   }
-  return trimmed;
+  return sanitized;
 }
 
 async function sendWhatsAppMessage(params: {
@@ -99,7 +128,9 @@ async function sendWhatsAppMessage(params: {
 
   if (params.contentSid && params.contentVariables) {
     messageParams.contentSid = params.contentSid;
-    messageParams.contentVariables = JSON.stringify(params.contentVariables);
+    messageParams.contentVariables = JSON.stringify(
+      sanitizeTwilioContentVariables(params.contentVariables)
+    );
   } else if (params.body) {
     messageParams.body = params.body;
   } else {

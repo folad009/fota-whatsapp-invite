@@ -1,6 +1,30 @@
 import { v } from "convex/values";
 import { authedMutation, authedQuery, requireEventOrganizer } from "./lib/auth";
 
+const eventStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("published"),
+  v.literal("completed")
+);
+
+const eventDocValidator = v.object({
+  _id: v.id("events"),
+  _creationTime: v.number(),
+  organizerId: v.id("users"),
+  title: v.string(),
+  description: v.optional(v.string()),
+  date: v.number(),
+  location: v.string(),
+  cloudinaryPublicId: v.optional(v.string()),
+  imageUrl: v.optional(v.string()),
+  capacity: v.optional(v.number()),
+  registrationDeadline: v.optional(v.number()),
+  customFields: v.optional(v.array(v.string())),
+  status: eventStatusValidator,
+  createdAt: v.number(),
+  updatedAt: v.optional(v.number()),
+});
+
 export const list = authedQuery({
   args: {},
   handler: async (ctx) => {
@@ -15,8 +39,15 @@ export const list = authedQuery({
 
 export const get = authedQuery({
   args: { eventId: v.id("events") },
+  returns: v.union(eventDocValidator, v.null()),
   handler: async (ctx, args) => {
-    const { event } = await requireEventOrganizer(ctx, args.eventId);
+    const event = await ctx.db.get("events", args.eventId);
+    if (!event) {
+      return null;
+    }
+    if (event.organizerId !== ctx.user._id) {
+      throw new Error("Unauthorized: You don't own this event");
+    }
     return event;
   },
 });
@@ -117,6 +148,34 @@ export const remove = authedMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireEventOrganizer(ctx, args.eventId);
+
+    const registrations = await ctx.db
+      .query("registrations")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    for (const registration of registrations) {
+      await ctx.db.delete("registrations", registration._id);
+    }
+
+    const invites = await ctx.db
+      .query("invites")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    for (const invite of invites) {
+      await ctx.db.delete("invites", invite._id);
+    }
+
+    const messageLogs = await ctx.db
+      .query("messageLogs")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    for (const log of messageLogs) {
+      await ctx.db.delete("messageLogs", log._id);
+    }
+
     await ctx.db.delete("events", args.eventId);
     return null;
   },

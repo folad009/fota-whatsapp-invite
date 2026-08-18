@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -18,24 +18,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EventRecord } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export default function EventDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const eventId = params.id as Id<"events">;
   const [editing, setEditing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const event = useQuery(api.events.get, { eventId }) as EventRecord | undefined;
-  const stats = useQuery(api.events.getStats, { eventId });
-  const invitees = useQuery(api.invites.listByEvent, { eventId });
+  const event = useQuery(api.events.get, { eventId });
+  const stats = useQuery(
+    api.events.getStats,
+    event ? { eventId } : "skip"
+  );
+  const invitees = useQuery(
+    api.invites.listByEvent,
+    event ? { eventId } : "skip"
+  );
 
   const sendInvites = useMutation(api.invites.sendInvites);
   const resendFailed = useMutation(api.invites.resendFailed);
   const sendReminders = useMutation(api.invites.sendReminders);
   const updateEvent = useMutation(api.events.update);
+  const removeEvent = useMutation(api.events.remove);
 
   const runAction = async (
     key: string,
@@ -56,6 +63,55 @@ export default function EventDetailPage() {
   if (event === undefined) {
     return <p className="text-muted-foreground">Loading event...</p>;
   }
+
+  if (event === null) {
+    return (
+      <>
+        <div className="mb-6">
+          <Link
+            href="/dashboard"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to events
+          </Link>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Event not found</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This event may have been deleted or you no longer have access to
+              it.
+            </p>
+            <Link href="/dashboard">
+              <Button>Back to dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        `Delete "${event.title}"? This permanently removes the event, all invitees, and registrations.`
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading("delete");
+    setMessage("");
+    try {
+      await removeEvent({ eventId });
+      router.push("/dashboard");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to delete event");
+      setActionLoading(null);
+    }
+  };
 
   if (editing) {
     return (
@@ -142,6 +198,13 @@ export default function EventDetailPage() {
               Mark completed
             </Button>
           )}
+          <Button
+            variant="destructive"
+            disabled={!!actionLoading}
+            onClick={() => void handleDelete()}
+          >
+            {actionLoading === "delete" ? "Deleting..." : "Delete event"}
+          </Button>
         </div>
       </div>
 
