@@ -20,6 +20,8 @@ Verify Twilio content SIDs and credentials are set on prod (same account as dev)
 
 ## 2. Deploy backend
 
+When code changes are ready (do not deploy until Twilio templates are updated if you changed template variables or media URL):
+
 ```bash
 npx convex deploy
 ```
@@ -59,19 +61,27 @@ npx convex run --prod users:bootstrapAdmin '{"email":"YOUR_EMAIL"}'
 
 1. Sign in at https://fota-whatsapp-invite.vercel.app/sign-in
 2. Create event with banner image
-3. Send invite to a real phone (no sandbox join needed on production)
-4. Open registration link from WhatsApp
-5. Confirm RSVP WhatsApp confirmation arrives
+3. Add invitees via CSV (optional): header row with `NAME,PHONE NUMBER`, then rows like `John Doe,08012345678`. Phone-only CSV (first column) still works.
+4. After updating Twilio Template 1 (media URL + `About: {{7}}` in body), set the new Content SID on prod:
+   ```bash
+   npx convex env set --prod TWILIO_CONTENT_EVENT_INVITE "HX..."
+   ```
+   Then run `npx convex deploy` if backend code changed, re-upload event banners, and re-send a test invite.
+5. Send invite to a real phone (no sandbox join needed on production)
+6. Open registration link from WhatsApp
+7. Confirm RSVP WhatsApp confirmation arrives
 
 ## Twilio media template (event invite)
 
-Your template media URL should be:
+WhatsApp header media is ~**1.91:1** (1200×630). Tall posters are clipped unless you use a **fit** transform in the template media URL.
+
+**Media URL** (letterboxes the full poster instead of cropping):
 
 ```text
-https://res.cloudinary.com/dfbd7mn3p/image/upload/{{1}}.jpg
+https://res.cloudinary.com/dfbd7mn3p/image/upload/c_fit,w_1200,h_630,b_white/{{1}}.jpg
 ```
 
-Sample for `{{1}}`:
+Sample for `{{1}}` (Cloudinary `public_id` path, no extension):
 
 ```text
 event-banners/vfjutiaqsbkszqs5f9kz
@@ -79,7 +89,9 @@ event-banners/vfjutiaqsbkszqs5f9kz
 
 Do **not** hardcode a Cloudinary version (`v1786462327`) in the template — new uploads get new versions and media will fail with error **63019**.
 
-If your template uses `.../event-banners/{{1}}` instead, the app sends the filename only (e.g. `vfjutiaqsbkszqs5f9kz.jpg`).
+The app sends `{{1}}` as the Cloudinary `public_id` (e.g. `event-banners/abc123`). The transform in the template URL handles WhatsApp sizing on delivery.
+
+**Banner uploads** in the app use the same fit transform (`c_fit,w_1200,h_630,b_white`). Re-upload event banners after changing this so WhatsApp gets the full poster (assets uploaded with old `c_fill` may still look cropped).
 
 ## Local dev (localhost + sandbox)
 
@@ -130,10 +142,14 @@ Error **63049** means Meta blocked a **Marketing** template. Recreate (or resubm
 
 **Media URL:**
 ```text
-https://res.cloudinary.com/dfbd7mn3p/image/upload/{{1}}.jpg
+https://res.cloudinary.com/dfbd7mn3p/image/upload/c_fit,w_1200,h_630,b_white/{{1}}.jpg
 ```
 
-**Body:**
+**Body:** `{{7}}` is **required** for the event description.
+
+- Use **`About: {{7}}`** on one line — not a static label like `Event description` on its own with no variable.
+- If Twilio limits variables or rejects multi-line labels, keep the label and variable on the **same line** (e.g. `About: {{7}}`), not on separate lines.
+
 ```text
 Hey {{2}},
 
@@ -146,6 +162,25 @@ Location: {{5}}
 
 Please tap the button below to complete your registration.
 ```
+
+**Wrong (description will be blank in WhatsApp):**
+```text
+Event description
+
+Event: {{3}}
+```
+
+**After updating this template in Twilio Console:**
+
+1. Resubmit as **Utility** if Meta rejected or recategorized it.
+2. Update `TWILIO_CONTENT_EVENT_INVITE` with the new Content SID (`HX...`) on **prod and dev** Convex:
+   ```bash
+   npx convex env set --prod TWILIO_CONTENT_EVENT_INVITE "HX..."
+   npx convex env set TWILIO_CONTENT_EVENT_INVITE "HX..."
+   ```
+3. Re-upload the event banner (if media URL changed), then **re-send a test invite**.
+
+If the message shows an empty description, the approved Twilio template is missing `{{7}}` in the body — repeat the steps above.
 
 **Button:** `Register`  
 **Button URL:**
@@ -167,7 +202,7 @@ https://fota-whatsapp-invite.vercel.app/r/{{6}}
 
 **Convex env:** `TWILIO_CONTENT_EVENT_INVITE=HX...`
 
-**App sends:** `"1"` media path, `"2"`–`"5"` name/title/date/location, `"6"` token only, `"7"` event description (or `No additional details provided.` if empty).
+**App sends:** `"1"` Cloudinary public_id (no extension), `"2"`–`"5"` name/title/date/location, `"6"` token only, `"7"` event description (or `No additional details provided.` if empty). Dev deployments log `"7"` in Convex action logs when `NEXT_PUBLIC_APP_URL` is localhost.
 
 ---
 

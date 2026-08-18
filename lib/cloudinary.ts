@@ -1,5 +1,12 @@
 import { v2 as cloudinary } from "cloudinary";
 
+/** WhatsApp header media ~1.91:1 (1200×630) — fit inside frame with letterboxing. */
+export const WHATSAPP_BANNER_WIDTH = 1200;
+export const WHATSAPP_BANNER_HEIGHT = 630;
+export const WHATSAPP_BANNER_ASPECT_RATIO =
+  WHATSAPP_BANNER_WIDTH / WHATSAPP_BANNER_HEIGHT;
+export const WHATSAPP_BANNER_TRANSFORMATION = `c_fit,w_${WHATSAPP_BANNER_WIDTH},h_${WHATSAPP_BANNER_HEIGHT},b_white`;
+
 export function getCloudinary() {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -25,7 +32,7 @@ export function getSignedUploadParams(folder = "event-banners") {
     {
       timestamp,
       folder,
-      transformation: "c_fill,w_1200,h_630,g_auto",
+      transformation: WHATSAPP_BANNER_TRANSFORMATION,
     },
     apiSecret
   );

@@ -16,6 +16,45 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { WHATSAPP_BANNER_ASPECT_RATIO, WHATSAPP_BANNER_TRANSFORMATION } from "@/lib/cloudinary";
+
+const ASPECT_RATIO_TOLERANCE = 0.15;
+
+function readImageDimensions(
+  file: File
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read image dimensions"));
+    };
+    img.src = objectUrl;
+  });
+}
+
+function getAspectRatioWarning(width: number, height: number): string | null {
+  if (height === 0) {
+    return null;
+  }
+
+  const ratio = width / height;
+  const diff =
+    Math.abs(ratio - WHATSAPP_BANNER_ASPECT_RATIO) / WHATSAPP_BANNER_ASPECT_RATIO;
+
+  if (diff <= ASPECT_RATIO_TOLERANCE) {
+    return null;
+  }
+
+  const orientation =
+    ratio < WHATSAPP_BANNER_ASPECT_RATIO ? "taller than" : "wider than";
+  return `This image is ${width}×${height}px (${orientation} the recommended 1200×630 landscape ratio). It will be letterboxed in WhatsApp; tall posters may still look cropped in the chat header.`;
+}
 
 interface EventFormProps {
   eventId?: Id<"events">;
@@ -55,6 +94,9 @@ export function EventForm({ eventId, initial }: EventFormProps) {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bannerAspectWarning, setBannerAspectWarning] = useState<string | null>(
+    null
+  );
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,8 +104,11 @@ export function EventForm({ eventId, initial }: EventFormProps) {
 
     setUploading(true);
     setError("");
+    setBannerAspectWarning(null);
 
     try {
+      const dimensions = await readImageDimensions(file);
+      setBannerAspectWarning(getAspectRatioWarning(dimensions.width, dimensions.height));
       const signRes = await fetch("/api/cloudinary/sign");
       const signData = await signRes.json();
 
@@ -73,7 +118,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
       formData.append("timestamp", signData.timestamp.toString());
       formData.append("signature", signData.signature);
       formData.append("folder", signData.folder);
-      formData.append("transformation", "c_fill,w_1200,h_630,g_auto");
+      formData.append("transformation", WHATSAPP_BANNER_TRANSFORMATION);
 
       const uploadRes = await fetch(
         `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
@@ -203,6 +248,11 @@ export function EventForm({ eventId, initial }: EventFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="banner">Event banner image</Label>
+            <p className="text-xs text-muted-foreground">
+              Recommended: 1200×630 px (landscape) for best WhatsApp display. Tall
+              posters may be letterboxed or cropped. Re-upload banners after
+              changing image settings.
+            </p>
             <Input
               id="banner"
               type="file"
@@ -213,13 +263,18 @@ export function EventForm({ eventId, initial }: EventFormProps) {
             {uploading && (
               <p className="text-sm text-muted-foreground">Uploading...</p>
             )}
+            {bannerAspectWarning && (
+              <p className="text-sm text-amber-600 dark:text-amber-500">
+                {bannerAspectWarning}
+              </p>
+            )}
             {imageUrl && (
-              <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg">
+              <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg bg-muted">
                 <Image
                   src={imageUrl}
                   alt="Event banner"
                   fill
-                  className="object-cover"
+                  className="object-contain"
                 />
               </div>
             )}

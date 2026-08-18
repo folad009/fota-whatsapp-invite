@@ -66,8 +66,10 @@ export function InviteUpload({ eventId }: { eventId: Id<"events"> }) {
       <CardHeader>
         <CardTitle>Add invitees</CardTitle>
         <CardDescription>
-          Paste phone numbers (one per line) or upload a CSV with a phone column.
-          Use international format or local numbers (e.g. 08012345678).
+          Paste phone numbers (one per line) or upload a CSV. Use international
+          format or local numbers (e.g. 08012345678). CSV with headers:
+          name and phone columns in any order (e.g. NAME, PHONE NUMBER). Legacy
+          CSV: phone-only in the first column.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -98,6 +100,9 @@ export function InviteUpload({ eventId }: { eventId: Id<"events"> }) {
 
         <div className="space-y-2">
           <Label htmlFor="csv">Upload CSV</Label>
+          <p className="text-xs text-muted-foreground">
+            Example with headers: NAME,PHONE NUMBER — then John Doe,08012345678
+          </p>
           <input
             id="csv"
             type="file"

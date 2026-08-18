@@ -28,27 +28,39 @@ function formatEventDate(timestamp: number): string {
   });
 }
 
-/** Twilio media template uses .../event-banners/{{1}} — pass filename only (e.g. abc.jpg). */
+/**
+ * Twilio media URL uses Cloudinary transform + {{1}}.jpg — pass public_id path
+ * (e.g. event-banners/abc123), no transform prefix, version, or file extension.
+ */
+function stripCloudinaryDeliveryPath(uploadPath: string): string {
+  let path = uploadPath;
+  while (/^v\d+\//.test(path) || /^c_[^/]+\//.test(path)) {
+    path = path.replace(/^v\d+\//, "").replace(/^c_[^/]+\//, "");
+  }
+  return path.replace(/\.(jpe?g|png|webp)$/i, "");
+}
+
 function getWhatsAppMediaVariable(
   cloudinaryPublicId: string,
   imageUrl?: string
 ): string {
+  if (cloudinaryPublicId.trim()) {
+    return cloudinaryPublicId.replace(/\.(jpe?g|png|webp)$/i, "");
+  }
+
   if (imageUrl) {
     const match = imageUrl.match(/\/upload\/(.+?)(?:\?|$)/);
-    if (match) {
-      const uploadPath = match[1];
-      const bannerSuffix = uploadPath.split("/event-banners/").pop();
-      if (bannerSuffix) {
-        return bannerSuffix;
-      }
+    if (match?.[1]) {
+      return stripCloudinaryDeliveryPath(match[1]);
     }
   }
 
-  const filename =
-    cloudinaryPublicId.split("/").pop() ?? cloudinaryPublicId;
-  return /\.(jpe?g|png|webp)$/i.test(filename)
-    ? filename
-    : `${filename}.jpg`;
+  throw new Error("Missing Cloudinary public_id for WhatsApp media variable");
+}
+
+function isDevDeployment(): boolean {
+  const appUrl = getAppUrl();
+  return appUrl.includes("localhost") || appUrl.includes("127.0.0.1");
 }
 
 function formatEventDescription(description?: string): string {
@@ -142,21 +154,33 @@ export const sendInvite = internalAction({
       if (event.imageUrl && event.cloudinaryPublicId) {
         const contentSid = process.env.TWILIO_CONTENT_EVENT_INVITE;
         if (contentSid) {
+          const contentVariables = {
+            "1": getWhatsAppMediaVariable(
+              event.cloudinaryPublicId,
+              event.imageUrl
+            ),
+            "2": inviteeName,
+            "3": event.title,
+            "4": eventDate,
+            "5": event.location,
+            "6": registerPath,
+            "7": eventDescription,
+          };
+
+          if (isDevDeployment()) {
+            console.log("sendInvite contentVariables", {
+              inviteId: args.inviteId,
+              eventId: event._id,
+              hasDescription: Boolean(event.description?.trim()),
+              "7": contentVariables["7"],
+              "1": contentVariables["1"],
+            });
+          }
+
           result = await trySendWhatsAppMessage({
             to: invite.phone,
             contentSid,
-            contentVariables: {
-              "1": getWhatsAppMediaVariable(
-                event.cloudinaryPublicId,
-                event.imageUrl
-              ),
-              "2": inviteeName,
-              "3": event.title,
-              "4": eventDate,
-              "5": event.location,
-              "6": registerPath,
-              "7": eventDescription,
-            },
+            contentVariables,
           });
         }
       }

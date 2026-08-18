@@ -3,7 +3,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { MutationCtx } from "./_generated/server";
 import { authedMutation, authedQuery, requireEventOrganizer } from "./lib/auth";
-import { parseCsvPhones, parsePhoneList } from "./lib/phones";
+import { CsvInviteeRow, parseCsvInvitees, parsePhoneList } from "./lib/phones";
 
 function generateToken(): string {
   const bytes = new Uint8Array(16);
@@ -101,11 +101,11 @@ export const addInvitees = authedMutation({
   handler: async (ctx, args) => {
     await requireEventOrganizer(ctx, args.eventId);
 
-    let phones: string[] = [];
+    let invitees: CsvInviteeRow[] = [];
     if (args.csvContent) {
-      phones = parseCsvPhones(args.csvContent);
+      invitees = parseCsvInvitees(args.csvContent);
     } else if (args.phonesText) {
-      phones = parsePhoneList(args.phonesText);
+      invitees = parsePhoneList(args.phonesText).map((phone) => ({ phone }));
     } else {
       throw new Error("Provide phone numbers via paste or CSV");
     }
@@ -113,13 +113,13 @@ export const addInvitees = authedMutation({
     let added = 0;
     let skipped = 0;
 
-    for (const phone of phones) {
+    for (const invitee of invitees) {
       const eventInvites = await ctx.db
         .query("invites")
         .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
         .collect();
 
-      const existing = eventInvites.find((i) => i.phone === phone);
+      const existing = eventInvites.find((i) => i.phone === invitee.phone);
 
       if (existing) {
         skipped++;
@@ -128,7 +128,8 @@ export const addInvitees = authedMutation({
 
       await ctx.db.insert("invites", {
         eventId: args.eventId,
-        phone,
+        phone: invitee.phone,
+        inviteeName: invitee.inviteeName,
         token: generateToken(),
         deliveryStatus: "pending",
         createdAt: Date.now(),
