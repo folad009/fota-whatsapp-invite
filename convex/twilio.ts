@@ -25,6 +25,7 @@ function formatEventDate(timestamp: number): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "Africa/Lagos",
   });
 }
 
@@ -102,6 +103,7 @@ function formatEventDescription(description?: string): string {
   }
   return sanitized;
 }
+
 
 async function sendWhatsAppMessage(params: {
   to: string;

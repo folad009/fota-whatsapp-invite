@@ -13,6 +13,7 @@ export function formatDate(timestamp: number): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "Africa/Lagos",
   });
 }
 
@@ -21,6 +22,7 @@ export function formatShortDate(timestamp: number): string {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "Africa/Lagos",
   });
 }
 
