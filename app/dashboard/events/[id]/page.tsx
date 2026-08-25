@@ -293,6 +293,44 @@ export default function EventDetailPage() {
         </Card>
       )}
 
+      {event.status === "published" && !event.publicRegistrationEnabled && (
+        <Card className="mb-8 border-dashed">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Public registration link</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Share one link so anyone can register with name and phone — no
+              WhatsApp invite needed.
+            </p>
+            <Button
+              disabled={actionLoading === "enablePublic"}
+              onClick={async () => {
+                setActionLoading("enablePublic");
+                setMessage("");
+                try {
+                  await updateEvent({
+                    eventId,
+                    publicRegistrationEnabled: true,
+                  });
+                  setMessage("Public registration enabled");
+                } catch (err) {
+                  setMessage(
+                    err instanceof Error ? err.message : "Failed to enable"
+                  );
+                } finally {
+                  setActionLoading(null);
+                }
+              }}
+            >
+              {actionLoading === "enablePublic"
+                ? "Enabling..."
+                : "Enable public link"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-8">
         <InviteUpload eventId={eventId} />
         {invitees && <InviteeTable eventId={eventId} invitees={invitees} />}
