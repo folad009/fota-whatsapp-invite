@@ -70,6 +70,7 @@ interface EventFormProps {
     cloudinaryPublicId?: string;
     capacity?: number;
     customFields?: string[];
+    publicRegistrationEnabled?: boolean;
   };
 }
 
@@ -89,6 +90,9 @@ export function EventForm({ eventId, initial }: EventFormProps) {
   const [capacity, setCapacity] = useState(initial?.capacity?.toString() ?? "");
   const [customFieldsText, setCustomFieldsText] = useState(
     initial?.customFields?.join(", ") ?? ""
+  );
+  const [publicRegistrationEnabled, setPublicRegistrationEnabled] = useState(
+    initial?.publicRegistrationEnabled ?? false
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [cloudinaryPublicId, setCloudinaryPublicId] = useState(
@@ -162,6 +166,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
         cloudinaryPublicId: cloudinaryPublicId || undefined,
         capacity: capacity ? parseInt(capacity, 10) : undefined,
         customFields: customFields.length > 0 ? customFields : undefined,
+        publicRegistrationEnabled,
       };
 
       if (eventId) {
@@ -246,6 +251,25 @@ export function EventForm({ eventId, initial }: EventFormProps) {
                 value={customFieldsText}
                 onChange={(e) => setCustomFieldsText(e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-lg border p-4">
+            <input
+              id="publicRegistration"
+              type="checkbox"
+              checked={publicRegistrationEnabled}
+              onChange={(e) => setPublicRegistrationEnabled(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-input"
+            />
+            <div className="space-y-1">
+              <Label htmlFor="publicRegistration" className="cursor-pointer">
+                Enable public registration link
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                When published, anyone can register at /e/your-event-id with
+                name and phone — no WhatsApp invite required.
+              </p>
             </div>
           </div>
 

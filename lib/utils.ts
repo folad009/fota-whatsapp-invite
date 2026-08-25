@@ -35,6 +35,11 @@ export function getRegistrationUrl(token: string): string {
   return base ? `${base}/r/${token}` : `/r/${token}`;
 }
 
+export function getPublicRegistrationUrl(eventId: string): string {
+  const base = getAppBaseUrl();
+  return base ? `${base}/e/${eventId}` : `/e/${eventId}`;
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

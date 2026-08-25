@@ -85,9 +85,19 @@ See [DEPLOY.md](./DEPLOY.md) for production deployment steps.
 - Create events with Cloudinary banner upload
 - Bulk invite via paste or CSV
 - WhatsApp invites with image templates
-- Public registration at `/r/[token]`
+- Public registration at `/r/[token]` (per-invitee WhatsApp link)
+- Public registration at `/e/[eventId]` (shareable link; enable per event in Edit)
 - RSVP confirmation via WhatsApp
 - Automated 24h attendance reminders (cron)
 - Manual reminder trigger from dashboard
 - YES/NO reply handling via Twilio webhook
 - Real-time RSVP stats and CSV export
+
+## Registration links
+
+| Link | Who can use it | Phone from |
+|------|----------------|------------|
+| `/r/{token}` | Pre-added invitees (WhatsApp or copied link) | Invite record |
+| `/e/{eventId}` | Anyone | Web form (requires **Enable public registration** + **Published** event) |
+
+Existing events default to public registration **off** until the organizer enables it in Edit event.

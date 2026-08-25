@@ -20,6 +20,7 @@ const eventDocValidator = v.object({
   capacity: v.optional(v.number()),
   registrationDeadline: v.optional(v.number()),
   customFields: v.optional(v.array(v.string())),
+  publicRegistrationEnabled: v.optional(v.boolean()),
   status: eventStatusValidator,
   createdAt: v.number(),
   updatedAt: v.optional(v.number()),
@@ -63,6 +64,7 @@ export const create = authedMutation({
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
+    publicRegistrationEnabled: v.optional(v.boolean()),
   },
   returns: v.id("events"),
   handler: async (ctx, args) => {
@@ -90,6 +92,7 @@ export const create = authedMutation({
       ...(args.customFields !== undefined
         ? { customFields: args.customFields }
         : {}),
+      publicRegistrationEnabled: args.publicRegistrationEnabled ?? false,
       status: "draft",
       createdAt: Date.now(),
     });
@@ -109,6 +112,7 @@ export const update = authedMutation({
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
+    publicRegistrationEnabled: v.optional(v.boolean()),
     status: v.optional(
       v.union(
         v.literal("draft"),
@@ -136,6 +140,8 @@ export const update = authedMutation({
       patch.registrationDeadline = updates.registrationDeadline;
     if (updates.customFields !== undefined)
       patch.customFields = updates.customFields;
+    if (updates.publicRegistrationEnabled !== undefined)
+      patch.publicRegistrationEnabled = updates.publicRegistrationEnabled;
     if (updates.status !== undefined) patch.status = updates.status;
 
     await ctx.db.patch("events", eventId, patch);

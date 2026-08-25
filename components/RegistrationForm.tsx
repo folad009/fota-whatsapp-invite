@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,31 +17,49 @@ import {
 } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 
-interface RegistrationFormProps {
+type EventInfo = {
+  title: string;
+  description?: string;
+  date: number;
+  location: string;
+  imageUrl?: string;
+  customFields?: string[];
+  capacity?: number;
+  registrationDeadline?: number;
+  registeredCount: number;
+};
+
+type TokenRegistrationFormProps = {
+  mode: "token";
   token: string;
   inviteeName?: string;
-  event: {
-    title: string;
-    description?: string;
-    date: number;
-    location: string;
-    imageUrl?: string;
-    customFields?: string[];
-    capacity?: number;
-    registrationDeadline?: number;
-    registeredCount: number;
-  };
+  event: EventInfo;
   alreadyRegistered: boolean;
-}
+};
 
-export function RegistrationForm({
-  token,
-  inviteeName,
-  event,
-  alreadyRegistered,
-}: RegistrationFormProps) {
-  const register = useMutation(api.registrations.register);
-  const [name, setName] = useState(inviteeName ?? "");
+type PublicRegistrationFormProps = {
+  mode: "public";
+  eventId: Id<"events">;
+  event: EventInfo;
+  alreadyRegistered?: boolean;
+};
+
+export type RegistrationFormProps =
+  | TokenRegistrationFormProps
+  | PublicRegistrationFormProps;
+
+export function RegistrationForm(props: RegistrationFormProps) {
+  const { event, mode } = props;
+  const alreadyRegistered =
+    props.mode === "token" ? props.alreadyRegistered : false;
+
+  const registerToken = useMutation(api.registrations.register);
+  const registerPublic = useMutation(api.registrations.registerPublic);
+
+  const [name, setName] = useState(
+    props.mode === "token" ? (props.inviteeName ?? "") : ""
+  );
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [customResponses, setCustomResponses] = useState<
     Record<string, string>
@@ -74,15 +93,27 @@ export function RegistrationForm({
       ? Math.max(0, event.capacity - event.registeredCount)
       : undefined;
 
+  const successDescription =
+    mode === "token" ? (
+      <>
+        Thanks for registering for {event.title}. You&apos;ll receive a WhatsApp
+        confirmation shortly.
+      </>
+    ) : (
+      <>
+        Thanks for registering for {event.title}.
+        {email
+          ? " We saved your email on file."
+          : " You're all set — see you at the event!"}
+      </>
+    );
+
   if (alreadyRegistered || success) {
     return (
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-primary">You&apos;re registered!</CardTitle>
-          <CardDescription>
-            Thanks for registering for {event.title}. You&apos;ll receive a
-            WhatsApp confirmation shortly.
-          </CardDescription>
+          <CardDescription>{successDescription}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -95,14 +126,26 @@ export function RegistrationForm({
     setLoading(true);
     setError("");
 
+    const customPayload =
+      Object.keys(customResponses).length > 0 ? customResponses : undefined;
+
     try {
-      await register({
-        token,
-        name,
-        email: email || undefined,
-        customResponses:
-          Object.keys(customResponses).length > 0 ? customResponses : undefined,
-      });
+      if (mode === "token") {
+        await registerToken({
+          token: props.token,
+          name,
+          email: email || undefined,
+          customResponses: customPayload,
+        });
+      } else {
+        await registerPublic({
+          eventId: props.eventId,
+          name,
+          phone,
+          email: email || undefined,
+          customResponses: customPayload,
+        });
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -174,6 +217,25 @@ export function RegistrationForm({
                   className="h-11 text-base sm:h-10 sm:text-sm"
                 />
               </div>
+
+              {mode === "public" && (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone number *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    autoComplete="tel"
+                    placeholder="+2348012345678"
+                    className="h-11 text-base sm:h-10 sm:text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Include country code (e.g. +234 for Nigeria).
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email (optional)</Label>

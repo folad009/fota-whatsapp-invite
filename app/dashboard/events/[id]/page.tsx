@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatDate } from "@/lib/utils";
+import { formatDate, copyToClipboard, getPublicRegistrationUrl } from "@/lib/utils";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -27,6 +27,7 @@ export default function EventDetailPage() {
   const [editing, setEditing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const event = useQuery(api.events.get, { eventId });
   const stats = useQuery(
@@ -127,6 +128,7 @@ export default function EventDetailPage() {
             cloudinaryPublicId: event.cloudinaryPublicId,
             capacity: event.capacity,
             customFields: event.customFields,
+            publicRegistrationEnabled: event.publicRegistrationEnabled,
           }}
         />
         <Button
@@ -262,6 +264,33 @@ export default function EventDetailPage() {
 
       {message && (
         <p className="mb-4 text-sm text-primary">{message}</p>
+      )}
+
+      {event.status === "published" && event.publicRegistrationEnabled && (
+        <Card className="mb-8">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Public registration link</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <code className="flex-1 truncate rounded-md bg-muted px-3 py-2 text-sm">
+              {getPublicRegistrationUrl(eventId)}
+            </code>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const ok = await copyToClipboard(
+                  getPublicRegistrationUrl(eventId)
+                );
+                setLinkCopied(ok);
+                if (ok) {
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }
+              }}
+            >
+              {linkCopied ? "Copied!" : "Copy link"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <div className="space-y-8">

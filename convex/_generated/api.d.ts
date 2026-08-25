@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_phones from "../lib/phones.js";
+import type * as lib_tokens from "../lib/tokens.js";
 import type * as messageLogs from "../messageLogs.js";
 import type * as registrations from "../registrations.js";
 import type * as twilio from "../twilio.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   invites: typeof invites;
   "lib/auth": typeof lib_auth;
   "lib/phones": typeof lib_phones;
+  "lib/tokens": typeof lib_tokens;
   messageLogs: typeof messageLogs;
   registrations: typeof registrations;
   twilio: typeof twilio;

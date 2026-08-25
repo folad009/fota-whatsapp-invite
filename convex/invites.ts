@@ -3,15 +3,8 @@ import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { MutationCtx } from "./_generated/server";
 import { authedMutation, authedQuery, requireEventOrganizer } from "./lib/auth";
+import { generateInviteToken } from "./lib/tokens";
 import { CsvInviteeRow, parseCsvInvitees, parsePhoneList } from "./lib/phones";
-
-function generateToken(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function isEligibleForAttendanceReminder(
   registration: Doc<"registrations"> | null,
@@ -130,7 +123,7 @@ export const addInvitees = authedMutation({
         eventId: args.eventId,
         phone: invitee.phone,
         inviteeName: invitee.inviteeName,
-        token: generateToken(),
+        token: generateInviteToken(),
         deliveryStatus: "pending",
         createdAt: Date.now(),
       });

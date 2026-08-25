@@ -11,6 +11,7 @@ export type EventRecord = {
   capacity?: number;
   registrationDeadline?: number;
   customFields?: string[];
+  publicRegistrationEnabled?: boolean;
   status: "draft" | "published" | "completed";
   createdAt: number;
   updatedAt?: number;
@@ -23,6 +24,7 @@ export type InviteeRecord = {
   phone: string;
   token: string;
   inviteeName?: string;
+  source?: "web" | "whatsapp";
   deliveryStatus: "pending" | "sent" | "delivered" | "failed" | "read";
   twilioMessageSid?: string;
   sentAt?: number;
