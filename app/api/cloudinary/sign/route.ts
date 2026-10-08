@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { getSignedUploadParams } from "@/lib/cloudinary";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const params = getSignedUploadParams();
+    const kind = new URL(request.url).searchParams.get("kind");
+    const params =
+      kind === "video"
+        ? getSignedUploadParams({
+            folder: "event-videos",
+            transformation: null,
+            resourceType: "video",
+          })
+        : kind === "carousel"
+          ? getSignedUploadParams({ folder: "event-carousel" })
+          : getSignedUploadParams();
     return NextResponse.json(params);
   } catch (error) {
     const message =

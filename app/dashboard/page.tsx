@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatShortDate } from "@/lib/utils";
+import { formatShortEventRange } from "@/lib/utils";
 
 export default function DashboardPage() {
   const events = useQuery(api.events.list);
@@ -59,7 +59,7 @@ export default function DashboardPage() {
                     <Badge status={event.status} />
                   </div>
                   <CardDescription>
-                    {formatShortDate(event.date)} · {event.location}
+                    {formatShortEventRange(event.date, event.endDate)} · {event.location}
                   </CardDescription>
                 </CardHeader>
               </Card>

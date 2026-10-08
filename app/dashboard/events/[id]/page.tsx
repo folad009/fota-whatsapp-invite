@@ -2,12 +2,12 @@
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { EventForm } from "@/components/EventForm";
+import { EventMedia } from "@/components/EventMedia";
 import { InviteUpload } from "@/components/InviteUpload";
 import { InviteeTable } from "@/components/InviteeTable";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatDate, copyToClipboard, getPublicRegistrationUrl } from "@/lib/utils";
+import { formatEventRange, copyToClipboard, getPublicRegistrationUrl } from "@/lib/utils";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -123,9 +123,14 @@ export default function EventDetailPage() {
             title: event.title,
             description: event.description,
             date: event.date,
+            endDate: event.endDate,
             location: event.location,
+            mediaType: event.mediaType,
             imageUrl: event.imageUrl,
             cloudinaryPublicId: event.cloudinaryPublicId,
+            carouselSlides: event.carouselSlides,
+            videoUrl: event.videoUrl,
+            videoPublicId: event.videoPublicId,
             capacity: event.capacity,
             customFields: event.customFields,
             publicRegistrationEnabled: event.publicRegistrationEnabled,
@@ -153,29 +158,18 @@ export default function EventDetailPage() {
         </Link>
       </div>
 
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex gap-4">
-          {event.imageUrl && (
-            <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg">
-              <Image
-                src={event.imageUrl}
-                alt={event.title}
-                fill
-                className="object-cover"
-              />
-            </div>
-          )}
+      <div className="mb-8 space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">{event.title}</h1>
               <Badge status={event.status} />
             </div>
             <p className="mt-1 text-muted-foreground">
-              {formatDate(event.date)}
+              {formatEventRange(event.date, event.endDate)}
             </p>
             <p className="text-sm text-muted-foreground">{event.location}</p>
           </div>
-        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditing(true)}>
@@ -207,7 +201,15 @@ export default function EventDetailPage() {
           >
             {actionLoading === "delete" ? "Deleting..." : "Delete event"}
           </Button>
+          </div>
         </div>
+        <EventMedia
+          title={event.title}
+          mediaType={event.mediaType}
+          imageUrl={event.imageUrl}
+          carouselSlides={event.carouselSlides}
+          videoUrl={event.videoUrl}
+        />
       </div>
 
       {stats && (

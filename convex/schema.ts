@@ -1,6 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import {
+  carouselSlideValidator,
+  mediaTypeValidator,
+} from "./lib/eventFields";
 
 const eventStatus = v.union(
   v.literal("draft"),
@@ -53,9 +57,14 @@ export default defineSchema({
     title: v.string(),
     description: v.optional(v.string()),
     date: v.number(),
+    endDate: v.optional(v.number()),
     location: v.string(),
+    mediaType: v.optional(mediaTypeValidator),
     cloudinaryPublicId: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    carouselSlides: v.optional(v.array(carouselSlideValidator)),
+    videoUrl: v.optional(v.string()),
+    videoPublicId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),

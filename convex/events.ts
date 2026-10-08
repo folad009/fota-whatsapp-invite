@@ -1,5 +1,14 @@
 import { v } from "convex/values";
 import { authedMutation, authedQuery, requireEventOrganizer } from "./lib/auth";
+import {
+  carouselSlideValidator,
+  mediaTypeValidator,
+} from "./lib/eventFields";
+import {
+  assertEventSchedule,
+  resolveStoredMedia,
+  type StoredMedia,
+} from "./lib/inviteMedia";
 
 const eventStatusValidator = v.union(
   v.literal("draft"),
@@ -14,9 +23,14 @@ const eventDocValidator = v.object({
   title: v.string(),
   description: v.optional(v.string()),
   date: v.number(),
+  endDate: v.optional(v.number()),
   location: v.string(),
+  mediaType: v.optional(mediaTypeValidator),
   cloudinaryPublicId: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
+  carouselSlides: v.optional(v.array(carouselSlideValidator)),
+  videoUrl: v.optional(v.string()),
+  videoPublicId: v.optional(v.string()),
   capacity: v.optional(v.number()),
   registrationDeadline: v.optional(v.number()),
   customFields: v.optional(v.array(v.string())),
@@ -58,9 +72,14 @@ export const create = authedMutation({
     title: v.string(),
     description: v.optional(v.string()),
     date: v.number(),
+    endDate: v.optional(v.union(v.number(), v.null())),
     location: v.string(),
+    mediaType: v.optional(mediaTypeValidator),
     cloudinaryPublicId: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    carouselSlides: v.optional(v.array(carouselSlideValidator)),
+    videoUrl: v.optional(v.string()),
+    videoPublicId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
@@ -71,20 +90,22 @@ export const create = authedMutation({
     if (args.title.length < 2) {
       throw new Error("Event title must be at least 2 characters");
     }
-    if (args.date <= Date.now()) {
-      throw new Error("Event date must be in the future");
-    }
+    assertEventSchedule({
+      date: args.date,
+      endDate: args.endDate,
+      now: Date.now(),
+      requireFutureStart: true,
+    });
+    const media = resolveStoredMedia(args);
 
     const eventId = await ctx.db.insert("events", {
       organizerId: ctx.user._id,
       title: args.title,
       ...(args.description !== undefined ? { description: args.description } : {}),
       date: args.date,
+      ...(args.endDate != null ? { endDate: args.endDate } : {}),
       location: args.location,
-      ...(args.cloudinaryPublicId !== undefined
-        ? { cloudinaryPublicId: args.cloudinaryPublicId }
-        : {}),
-      ...(args.imageUrl !== undefined ? { imageUrl: args.imageUrl } : {}),
+      ...storedMediaFields(media),
       ...(args.capacity !== undefined ? { capacity: args.capacity } : {}),
       ...(args.registrationDeadline !== undefined
         ? { registrationDeadline: args.registrationDeadline }
@@ -106,9 +127,14 @@ export const update = authedMutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     date: v.optional(v.number()),
+    endDate: v.optional(v.union(v.number(), v.null())),
     location: v.optional(v.string()),
+    mediaType: v.optional(mediaTypeValidator),
     cloudinaryPublicId: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    carouselSlides: v.optional(v.array(carouselSlideValidator)),
+    videoUrl: v.optional(v.string()),
+    videoPublicId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
@@ -124,17 +150,69 @@ export const update = authedMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireEventOrganizer(ctx, args.eventId);
+    const event = await ctx.db.get("events", args.eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
 
     const { eventId, ...updates } = args;
-    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    const nextDate = updates.date ?? event.date;
+    const nextEndDate =
+      updates.endDate === undefined ? event.endDate : updates.endDate;
+    if (updates.date !== undefined || updates.endDate !== undefined) {
+      assertEventSchedule({
+        date: nextDate,
+        endDate: nextEndDate,
+        now: Date.now(),
+        requireFutureStart: false,
+      });
+    }
+
+    const patch: {
+      updatedAt: number;
+      title?: string;
+      description?: string;
+      date?: number;
+      endDate?: number;
+      location?: string;
+      mediaType?: StoredMedia["mediaType"];
+      cloudinaryPublicId?: string;
+      imageUrl?: string;
+      carouselSlides?: StoredMedia["carouselSlides"];
+      videoUrl?: string;
+      videoPublicId?: string;
+      capacity?: number;
+      registrationDeadline?: number;
+      customFields?: string[];
+      publicRegistrationEnabled?: boolean;
+      status?: "draft" | "published" | "completed";
+    } = { updatedAt: Date.now() };
 
     if (updates.title !== undefined) patch.title = updates.title;
     if (updates.description !== undefined) patch.description = updates.description;
     if (updates.date !== undefined) patch.date = updates.date;
+    if (updates.endDate === null) {
+      patch.endDate = undefined;
+    } else if (updates.endDate !== undefined) {
+      patch.endDate = updates.endDate;
+    }
     if (updates.location !== undefined) patch.location = updates.location;
-    if (updates.cloudinaryPublicId !== undefined)
-      patch.cloudinaryPublicId = updates.cloudinaryPublicId;
-    if (updates.imageUrl !== undefined) patch.imageUrl = updates.imageUrl;
+    if (updates.mediaType !== undefined) {
+      const media = resolveStoredMedia({
+        mediaType: updates.mediaType,
+        imageUrl: updates.imageUrl,
+        cloudinaryPublicId: updates.cloudinaryPublicId,
+        carouselSlides: updates.carouselSlides,
+        videoUrl: updates.videoUrl,
+        videoPublicId: updates.videoPublicId,
+      });
+      patch.mediaType = media.mediaType;
+      patch.imageUrl = media.imageUrl;
+      patch.cloudinaryPublicId = media.cloudinaryPublicId;
+      patch.carouselSlides = media.carouselSlides;
+      patch.videoUrl = media.videoUrl;
+      patch.videoPublicId = media.videoPublicId;
+    }
     if (updates.capacity !== undefined) patch.capacity = updates.capacity;
     if (updates.registrationDeadline !== undefined)
       patch.registrationDeadline = updates.registrationDeadline;
@@ -186,6 +264,23 @@ export const remove = authedMutation({
     return null;
   },
 });
+
+function storedMediaFields(media: StoredMedia) {
+  return {
+    mediaType: media.mediaType,
+    ...(media.imageUrl !== undefined ? { imageUrl: media.imageUrl } : {}),
+    ...(media.cloudinaryPublicId !== undefined
+      ? { cloudinaryPublicId: media.cloudinaryPublicId }
+      : {}),
+    ...(media.carouselSlides !== undefined
+      ? { carouselSlides: media.carouselSlides }
+      : {}),
+    ...(media.videoUrl !== undefined ? { videoUrl: media.videoUrl } : {}),
+    ...(media.videoPublicId !== undefined
+      ? { videoPublicId: media.videoPublicId }
+      : {}),
+  };
+}
 
 export const getStats = authedQuery({
   args: { eventId: v.id("events") },

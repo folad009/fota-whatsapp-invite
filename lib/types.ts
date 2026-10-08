@@ -5,9 +5,14 @@ export type EventRecord = {
   title: string;
   description?: string;
   date: number;
+  endDate?: number;
   location: string;
+  mediaType?: "image" | "carousel" | "video";
   cloudinaryPublicId?: string;
   imageUrl?: string;
+  carouselSlides?: { cloudinaryPublicId: string; imageUrl: string }[];
+  videoUrl?: string;
+  videoPublicId?: string;
   capacity?: number;
   registrationDeadline?: number;
   customFields?: string[];

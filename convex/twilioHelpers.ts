@@ -1,5 +1,9 @@
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
+import {
+  carouselSlideValidator,
+  mediaTypeValidator,
+} from "./lib/eventFields";
 
 export const getInviteData = internalQuery({
   args: { inviteId: v.id("invites") },
@@ -15,10 +19,15 @@ export const getInviteData = internalQuery({
         _id: v.id("events"),
         title: v.string(),
         date: v.number(),
+        endDate: v.optional(v.number()),
         location: v.string(),
         description: v.optional(v.string()),
+        mediaType: v.optional(mediaTypeValidator),
         cloudinaryPublicId: v.optional(v.string()),
         imageUrl: v.optional(v.string()),
+        carouselSlides: v.optional(v.array(carouselSlideValidator)),
+        videoUrl: v.optional(v.string()),
+        videoPublicId: v.optional(v.string()),
       }),
     }),
     v.null()
@@ -41,10 +50,23 @@ export const getInviteData = internalQuery({
         _id: event._id,
         title: event.title,
         date: event.date,
+        ...(event.endDate !== undefined ? { endDate: event.endDate } : {}),
         location: event.location,
-        description: event.description,
-        cloudinaryPublicId: event.cloudinaryPublicId,
-        imageUrl: event.imageUrl,
+        ...(event.description !== undefined
+          ? { description: event.description }
+          : {}),
+        ...(event.mediaType !== undefined ? { mediaType: event.mediaType } : {}),
+        ...(event.cloudinaryPublicId !== undefined
+          ? { cloudinaryPublicId: event.cloudinaryPublicId }
+          : {}),
+        ...(event.imageUrl !== undefined ? { imageUrl: event.imageUrl } : {}),
+        ...(event.carouselSlides !== undefined
+          ? { carouselSlides: event.carouselSlides }
+          : {}),
+        ...(event.videoUrl !== undefined ? { videoUrl: event.videoUrl } : {}),
+        ...(event.videoPublicId !== undefined
+          ? { videoPublicId: event.videoPublicId }
+          : {}),
       },
     };
   },
@@ -64,6 +86,7 @@ export const getRegistrationData = internalQuery({
         _id: v.id("events"),
         title: v.string(),
         date: v.number(),
+        endDate: v.optional(v.number()),
       }),
     }),
     v.null()
@@ -86,6 +109,7 @@ export const getRegistrationData = internalQuery({
         _id: event._id,
         title: event.title,
         date: event.date,
+        ...(event.endDate !== undefined ? { endDate: event.endDate } : {}),
       },
     };
   },

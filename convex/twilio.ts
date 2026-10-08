@@ -4,6 +4,12 @@ import { v } from "convex/values";
 import Twilio from "twilio";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
+import {
+  buildInviteContentVariables,
+  formatWhatsAppEventDateRange,
+  planInviteMedia,
+  type InviteText,
+} from "./lib/inviteMedia";
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -18,45 +24,10 @@ function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
-function formatEventDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "Africa/Lagos",
-  });
-}
-
-/**
- * Twilio media URL uses Cloudinary transform + {{1}}.jpg — pass public_id path
- * (e.g. event-banners/abc123), no transform prefix, version, or file extension.
- */
-function stripCloudinaryDeliveryPath(uploadPath: string): string {
-  let path = uploadPath;
-  while (/^v\d+\//.test(path) || /^c_[^/]+\//.test(path)) {
-    path = path.replace(/^v\d+\//, "").replace(/^c_[^/]+\//, "");
-  }
-  return path.replace(/\.(jpe?g|png|webp)$/i, "");
-}
-
-function getWhatsAppMediaVariable(
-  cloudinaryPublicId: string,
-  imageUrl?: string
-): string {
-  if (cloudinaryPublicId.trim()) {
-    return cloudinaryPublicId.replace(/\.(jpe?g|png|webp)$/i, "");
-  }
-
-  if (imageUrl) {
-    const match = imageUrl.match(/\/upload\/(.+?)(?:\?|$)/);
-    if (match?.[1]) {
-      return stripCloudinaryDeliveryPath(match[1]);
-    }
-  }
-
-  throw new Error("Missing Cloudinary public_id for WhatsApp media variable");
+function parseCarouselCardCount(value?: string): number | undefined {
+  if (!value?.trim()) return undefined;
+  const count = Number(value);
+  return Number.isInteger(count) ? count : undefined;
 }
 
 function isDevDeployment(): boolean {
@@ -176,30 +147,81 @@ export const sendInvite = internalAction({
     const { invite, event } = data;
     const registerUrl = `${getAppUrl().replace(/\/$/, "")}/r/${invite.token}`;
     const inviteeName = invite.inviteeName ?? "there";
-    const eventDate = formatEventDate(event.date);
+    const eventDate = formatWhatsAppEventDateRange(event.date, event.endDate);
     const eventDescription = formatEventDescription(event.description);
     // Twilio button templates use a fixed URL like …/r/{{6}} — pass token only, not full URL.
     const registerPath = invite.token;
+    const inviteText: InviteText = {
+      inviteeName,
+      title: event.title,
+      eventDate,
+      location: event.location,
+      registerPath,
+      description: eventDescription,
+    };
 
     try {
       let result;
+      const plan = planInviteMedia(event, {
+        carouselTemplateSid: process.env.TWILIO_CONTENT_EVENT_INVITE_CAROUSEL,
+        carouselCardCount: parseCarouselCardCount(
+          process.env.TWILIO_CAROUSEL_CARD_COUNT
+        ),
+        videoTemplateSid: process.env.TWILIO_CONTENT_EVENT_INVITE_VIDEO,
+      });
 
-      if (event.imageUrl && event.cloudinaryPublicId) {
+      if (plan.channel === "error") {
+        throw new Error(plan.message);
+      }
+
+      if (plan.channel === "video") {
+        const contentSid = process.env.TWILIO_CONTENT_EVENT_INVITE_VIDEO;
+        if (!contentSid) {
+          throw new Error(
+            "WhatsApp video invites require an approved video template. Set TWILIO_CONTENT_EVENT_INVITE_VIDEO."
+          );
+        }
+        result = await trySendWhatsAppMessage({
+          to: invite.phone,
+          contentSid,
+          contentVariables: buildInviteContentVariables(plan, inviteText),
+        });
+        if (!result) {
+          throw new Error(
+            "WhatsApp video template was not found. Check TWILIO_CONTENT_EVENT_INVITE_VIDEO."
+          );
+        }
+      } else if (plan.channel === "carousel") {
+        // Approved carousel template variables: 1..N media public ids, then
+        // name, title, date range, location, register token, description.
+        // N must equal TWILIO_CAROUSEL_CARD_COUNT. Video templates reuse the
+        // image template's 1..7 slots, with {{1}} as a video public id.
+        const contentSid = process.env.TWILIO_CONTENT_EVENT_INVITE_CAROUSEL;
+        if (contentSid) {
+          result = await trySendWhatsAppMessage({
+            to: invite.phone,
+            contentSid,
+            contentVariables: buildInviteContentVariables(plan, inviteText),
+          });
+        }
+        if (!result) {
+          const imageSid = process.env.TWILIO_CONTENT_EVENT_INVITE;
+          const firstSlide = plan.mediaVariables[0];
+          if (imageSid && firstSlide) {
+            result = await trySendWhatsAppMessage({
+              to: invite.phone,
+              contentSid: imageSid,
+              contentVariables: buildInviteContentVariables(
+                { channel: "image", mediaVariable: firstSlide },
+                inviteText
+              ),
+            });
+          }
+        }
+      } else if (plan.channel === "image") {
         const contentSid = process.env.TWILIO_CONTENT_EVENT_INVITE;
         if (contentSid) {
-          const contentVariables = {
-            "1": getWhatsAppMediaVariable(
-              event.cloudinaryPublicId,
-              event.imageUrl
-            ),
-            "2": inviteeName,
-            "3": event.title,
-            "4": eventDate,
-            "5": event.location,
-            "6": registerPath,
-            "7": eventDescription,
-          };
-
+          const contentVariables = buildInviteContentVariables(plan, inviteText);
           if (isDevDeployment()) {
             console.log("sendInvite contentVariables", {
               inviteId: args.inviteId,
@@ -209,7 +231,6 @@ export const sendInvite = internalAction({
               "1": contentVariables["1"],
             });
           }
-
           result = await trySendWhatsAppMessage({
             to: invite.phone,
             contentSid,
@@ -282,7 +303,7 @@ export const sendRsvpConfirmation = internalAction({
     if (!data) return null;
 
     const { registration, event } = data;
-    const eventDate = formatEventDate(event.date);
+    const eventDate = formatWhatsAppEventDateRange(event.date, event.endDate);
 
     try {
       const contentSid = process.env.TWILIO_CONTENT_RSVP_CONFIRM;
@@ -333,7 +354,7 @@ export const sendReminder = internalAction({
     if (!data) return null;
 
     const { registration, event } = data;
-    const eventDate = formatEventDate(event.date);
+    const eventDate = formatWhatsAppEventDateRange(event.date, event.endDate);
 
     try {
       const contentSid = process.env.TWILIO_CONTENT_REMINDER;

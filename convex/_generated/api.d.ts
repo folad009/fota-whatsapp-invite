@@ -15,6 +15,8 @@ import type * as events from "../events.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_eventFields from "../lib/eventFields.js";
+import type * as lib_inviteMedia from "../lib/inviteMedia.js";
 import type * as lib_phones from "../lib/phones.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as messageLogs from "../messageLogs.js";
@@ -38,6 +40,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   invites: typeof invites;
   "lib/auth": typeof lib_auth;
+  "lib/eventFields": typeof lib_eventFields;
+  "lib/inviteMedia": typeof lib_inviteMedia;
   "lib/phones": typeof lib_phones;
   "lib/tokens": typeof lib_tokens;
   messageLogs: typeof messageLogs;

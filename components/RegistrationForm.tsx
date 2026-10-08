@@ -2,7 +2,6 @@
 
 import { useMutation } from "convex/react";
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -15,14 +14,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatDate } from "@/lib/utils";
+import { EventMedia } from "@/components/EventMedia";
+import { formatDate, formatEventRange } from "@/lib/utils";
 
 type EventInfo = {
   title: string;
   description?: string;
   date: number;
+  endDate?: number;
   location: string;
+  mediaType?: "image" | "carousel" | "video";
   imageUrl?: string;
+  carouselSlides?: { imageUrl: string; cloudinaryPublicId: string }[];
+  videoUrl?: string;
   customFields?: string[];
   capacity?: number;
   registrationDeadline?: number;
@@ -156,24 +160,19 @@ export function RegistrationForm(props: RegistrationFormProps) {
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4 sm:space-y-6">
-      {event.imageUrl && (
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl sm:rounded-2xl">
-          <Image
-            src={event.imageUrl}
-            alt={event.title}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, 512px"
-          />
-        </div>
-      )}
+      <EventMedia
+        title={event.title}
+        mediaType={event.mediaType}
+        imageUrl={event.imageUrl}
+        carouselSlides={event.carouselSlides}
+        videoUrl={event.videoUrl}
+      />
 
       <Card className="border-border shadow-sm">
         <CardHeader className="space-y-3 pb-4">
           <CardTitle className="text-xl sm:text-2xl">{event.title}</CardTitle>
           <CardDescription className="space-y-1 text-sm sm:text-base">
-            <span className="block">{formatDate(event.date)}</span>
+            <span className="block">{formatEventRange(event.date, event.endDate)}</span>
             <span className="block">{event.location}</span>
           </CardDescription>
           {event.description && (

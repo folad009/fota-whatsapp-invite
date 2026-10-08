@@ -26,6 +26,20 @@ export function formatShortDate(timestamp: number): string {
   });
 }
 
+export function formatEventRange(start: number, end?: number): string {
+  if (end === undefined) {
+    return formatDate(start);
+  }
+  return `${formatDate(start)} – ${formatDate(end)}`;
+}
+
+export function formatShortEventRange(start: number, end?: number): string {
+  if (end === undefined) {
+    return formatShortDate(start);
+  }
+  return `${formatShortDate(start)} – ${formatShortDate(end)}`;
+}
+
 export function getAppBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 }

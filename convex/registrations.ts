@@ -4,14 +4,22 @@ import { Id } from "./_generated/dataModel";
 import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { isValidE164, normalizePhone } from "./lib/phones";
 import { generateInviteToken } from "./lib/tokens";
+import {
+  carouselSlideValidator,
+  mediaTypeValidator,
+} from "./lib/eventFields";
 
 const publicEventValidator = v.object({
   _id: v.id("events"),
   title: v.string(),
   description: v.optional(v.string()),
   date: v.number(),
+  endDate: v.optional(v.number()),
   location: v.string(),
+  mediaType: v.optional(mediaTypeValidator),
   imageUrl: v.optional(v.string()),
+  carouselSlides: v.optional(v.array(carouselSlideValidator)),
+  videoUrl: v.optional(v.string()),
   capacity: v.optional(v.number()),
   registrationDeadline: v.optional(v.number()),
   customFields: v.optional(v.array(v.string())),
@@ -60,8 +68,12 @@ function toPublicEventFields(
     title: string;
     description?: string;
     date: number;
+    endDate?: number;
     location: string;
+    mediaType?: "image" | "carousel" | "video";
     imageUrl?: string;
+    carouselSlides?: { cloudinaryPublicId: string; imageUrl: string }[];
+    videoUrl?: string;
     capacity?: number;
     registrationDeadline?: number;
     customFields?: string[];
@@ -72,15 +84,27 @@ function toPublicEventFields(
   return {
     _id: event._id,
     title: event.title,
-    description: event.description,
+    ...(event.description !== undefined ? { description: event.description } : {}),
     date: event.date,
+    ...(event.endDate !== undefined ? { endDate: event.endDate } : {}),
     location: event.location,
-    imageUrl: event.imageUrl,
-    capacity: event.capacity,
-    registrationDeadline: event.registrationDeadline,
-    customFields: event.customFields,
+    ...(event.mediaType !== undefined ? { mediaType: event.mediaType } : {}),
+    ...(event.imageUrl !== undefined ? { imageUrl: event.imageUrl } : {}),
+    ...(event.carouselSlides !== undefined
+      ? { carouselSlides: event.carouselSlides }
+      : {}),
+    ...(event.videoUrl !== undefined ? { videoUrl: event.videoUrl } : {}),
+    ...(event.capacity !== undefined ? { capacity: event.capacity } : {}),
+    ...(event.registrationDeadline !== undefined
+      ? { registrationDeadline: event.registrationDeadline }
+      : {}),
+    ...(event.customFields !== undefined
+      ? { customFields: event.customFields }
+      : {}),
     registeredCount,
-    publicRegistrationEnabled: event.publicRegistrationEnabled,
+    ...(event.publicRegistrationEnabled !== undefined
+      ? { publicRegistrationEnabled: event.publicRegistrationEnabled }
+      : {}),
   };
 }
 
@@ -139,20 +163,10 @@ export const getInviteByToken = query({
         phone: invite.phone,
         inviteeName: invite.inviteeName,
       },
-      event: {
-        _id: event._id,
-        title: event.title,
-        description: event.description,
-        date: event.date,
-        location: event.location,
-        imageUrl: event.imageUrl,
-        capacity: event.capacity,
-        registrationDeadline: event.registrationDeadline,
-        customFields: event.customFields,
-        registeredCount: registrations.filter(
-          (r) => r.rsvpStatus === "registered"
-        ).length,
-      },
+      event: toPublicEventFields(
+        event,
+        registrations.filter((r) => r.rsvpStatus === "registered").length
+      ),
       alreadyRegistered: existingRegistration?.rsvpStatus === "registered",
     };
   },

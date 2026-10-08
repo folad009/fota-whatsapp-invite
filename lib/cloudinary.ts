@@ -17,7 +17,15 @@ export function getCloudinary() {
   return cloudinary;
 }
 
-export function getSignedUploadParams(folder = "event-banners") {
+type SignedUploadOptions = {
+  folder?: string;
+  transformation?: string | null;
+  resourceType?: "image" | "video";
+};
+
+export function getSignedUploadParams(
+  folderOrOptions: string | SignedUploadOptions = "event-banners"
+) {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -26,17 +34,25 @@ export function getSignedUploadParams(folder = "event-banners") {
     throw new Error("Cloudinary credentials not configured");
   }
 
+  const options: SignedUploadOptions =
+    typeof folderOrOptions === "string"
+      ? { folder: folderOrOptions }
+      : folderOrOptions;
+  const folder = options.folder ?? "event-banners";
+  const resourceType = options.resourceType ?? "image";
+  const transformation =
+    options.transformation === undefined
+      ? WHATSAPP_BANNER_TRANSFORMATION
+      : options.transformation;
+
   const timestamp = Math.round(Date.now() / 1000);
   const cld = getCloudinary();
+  const paramsToSign: Record<string, string | number> = { timestamp, folder };
+  if (transformation) {
+    paramsToSign.transformation = transformation;
+  }
 
-  const signature = cld.utils.api_sign_request(
-    {
-      timestamp,
-      folder,
-      transformation: WHATSAPP_BANNER_TRANSFORMATION,
-    },
-    apiSecret
-  );
+  const signature = cld.utils.api_sign_request(paramsToSign, apiSecret);
 
   return {
     timestamp,
@@ -44,5 +60,7 @@ export function getSignedUploadParams(folder = "event-banners") {
     cloudName,
     apiKey,
     folder,
+    resourceType,
+    ...(transformation ? { transformation } : {}),
   };
 }
