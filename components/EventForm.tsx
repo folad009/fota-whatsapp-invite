@@ -9,6 +9,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import {
   CAROUSEL_MAX_SLIDES,
   CAROUSEL_MIN_SLIDES,
+  WHATSAPP_VIDEO_MAX_BYTES,
   WHATSAPP_VIDEO_MAX_SECONDS,
   assertEventSchedule,
   resolveStoredMedia,
@@ -148,6 +149,7 @@ interface EventFormProps {
     carouselSlides?: CarouselSlide[];
     videoUrl?: string;
     videoPublicId?: string;
+    videoSizeBytes?: number;
     capacity?: number;
     customFields?: string[];
     publicRegistrationEnabled?: boolean;
@@ -192,6 +194,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
   );
   const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? "");
   const [videoPublicId, setVideoPublicId] = useState(initial?.videoPublicId ?? "");
+  const [videoSizeBytes, setVideoSizeBytes] = useState(initial?.videoSizeBytes ?? 0);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -211,6 +214,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
     if (next !== "video") {
       setVideoUrl("");
       setVideoPublicId("");
+      setVideoSizeBytes(0);
     }
   };
 
@@ -274,6 +278,10 @@ export function EventForm({ eventId, initial }: EventFormProps) {
     setUploading(true);
     setError("");
     try {
+      if (file.size > WHATSAPP_VIDEO_MAX_BYTES) {
+        setError("Video uploads must be 100 MB or smaller.");
+        return;
+      }
       const duration = await readVideoDuration(file);
       const validationError = validateWhatsAppVideoFile(file, duration);
       if (validationError) {
@@ -283,6 +291,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
       const uploaded = await uploadToCloudinary(file, "video");
       setVideoUrl(uploaded.url);
       setVideoPublicId(uploaded.publicId);
+      setVideoSizeBytes(file.size);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Video upload failed");
     } finally {
@@ -327,6 +336,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
         carouselSlides: slides,
         videoUrl,
         videoPublicId,
+        videoSizeBytes: videoSizeBytes || undefined,
       });
 
       const payload = {
@@ -585,8 +595,7 @@ export function EventForm({ eventId, initial }: EventFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="video">Invite video</Label>
                 <p className="text-xs text-muted-foreground">
-                  MP4 only, up to 16 MB and {WHATSAPP_VIDEO_MAX_SECONDS} seconds.
-                  WhatsApp sends it when a video template is configured.
+                  MP4 only, up to 100 MB and {WHATSAPP_VIDEO_MAX_SECONDS} seconds. Videos up to 16 MB can be sent as WhatsApp media; larger videos are shared as a Cloudinary link. A link template must be configured for larger videos.
                 </p>
                 <Input
                   id="video"
