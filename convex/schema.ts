@@ -65,6 +65,7 @@ export default defineSchema({
     carouselSlides: v.optional(v.array(carouselSlideValidator)),
     videoUrl: v.optional(v.string()),
     videoPublicId: v.optional(v.string()),
+    videoSizeBytes: v.optional(v.number()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),

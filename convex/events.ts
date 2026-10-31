@@ -31,6 +31,7 @@ const eventDocValidator = v.object({
   carouselSlides: v.optional(v.array(carouselSlideValidator)),
   videoUrl: v.optional(v.string()),
   videoPublicId: v.optional(v.string()),
+  videoSizeBytes: v.optional(v.number()),
   capacity: v.optional(v.number()),
   registrationDeadline: v.optional(v.number()),
   customFields: v.optional(v.array(v.string())),
@@ -80,6 +81,7 @@ export const create = authedMutation({
     carouselSlides: v.optional(v.array(carouselSlideValidator)),
     videoUrl: v.optional(v.string()),
     videoPublicId: v.optional(v.string()),
+    videoSizeBytes: v.optional(v.number()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
@@ -135,6 +137,7 @@ export const update = authedMutation({
     carouselSlides: v.optional(v.array(carouselSlideValidator)),
     videoUrl: v.optional(v.string()),
     videoPublicId: v.optional(v.string()),
+    videoSizeBytes: v.optional(v.number()),
     capacity: v.optional(v.number()),
     registrationDeadline: v.optional(v.number()),
     customFields: v.optional(v.array(v.string())),
@@ -181,6 +184,7 @@ export const update = authedMutation({
       carouselSlides?: StoredMedia["carouselSlides"];
       videoUrl?: string;
       videoPublicId?: string;
+      videoSizeBytes?: number;
       capacity?: number;
       registrationDeadline?: number;
       customFields?: string[];
@@ -213,6 +217,7 @@ export const update = authedMutation({
       patch.videoUrl = media.videoUrl;
       patch.videoPublicId = media.videoPublicId;
     }
+    if (updates.videoSizeBytes !== undefined) patch.videoSizeBytes = updates.videoSizeBytes;
     if (updates.capacity !== undefined) patch.capacity = updates.capacity;
     if (updates.registrationDeadline !== undefined)
       patch.registrationDeadline = updates.registrationDeadline;
