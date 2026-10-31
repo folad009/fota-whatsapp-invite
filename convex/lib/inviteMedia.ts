@@ -1,6 +1,7 @@
 export const CAROUSEL_MIN_SLIDES = 2;
 export const CAROUSEL_MAX_SLIDES = 10;
-export const WHATSAPP_VIDEO_MAX_BYTES = 16 * 1024 * 1024;
+export const WHATSAPP_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+export const WHATSAPP_NATIVE_VIDEO_MAX_BYTES = 16 * 1024 * 1024;
 export const WHATSAPP_VIDEO_MAX_SECONDS = 60;
 
 export type MediaType = "image" | "carousel" | "video";
@@ -17,6 +18,7 @@ export type EventMediaInput = {
   carouselSlides?: CarouselSlide[];
   videoUrl?: string;
   videoPublicId?: string;
+  videoSizeBytes?: number;
 };
 
 export type StoredMedia = {
@@ -26,6 +28,7 @@ export type StoredMedia = {
   carouselSlides?: CarouselSlide[];
   videoUrl?: string;
   videoPublicId?: string;
+  videoSizeBytes?: number;
 };
 
 export type InviteText = {
@@ -41,6 +44,7 @@ export type InviteMediaPlan =
   | { channel: "image"; mediaVariable: string }
   | { channel: "carousel"; mediaVariables: string[] }
   | { channel: "video"; mediaVariable: string }
+  | { channel: "videoLink"; videoUrl: string }
   | { channel: "none" }
   | { channel: "error"; message: string };
 
@@ -114,7 +118,12 @@ export function resolveStoredMedia(input: EventMediaInput): StoredMedia {
     if (!videoUrl || !videoPublicId) {
       throw new Error("A video invite needs a video file");
     }
-    return { mediaType, videoUrl, videoPublicId };
+    return {
+      mediaType,
+      videoUrl,
+      videoPublicId,
+      ...(input.videoSizeBytes !== undefined ? { videoSizeBytes: input.videoSizeBytes } : {}),
+    };
   }
 
   const imageUrl = clean(input.imageUrl);
@@ -136,7 +145,7 @@ export function validateWhatsAppVideoFile(
     return "WhatsApp video invites must be MP4 files.";
   }
   if (file.size > WHATSAPP_VIDEO_MAX_BYTES) {
-    return "WhatsApp video invites must be 16 MB or smaller.";
+    return "Video uploads must be 100 MB or smaller.";
   }
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
     return "Could not read the video duration.";
@@ -153,16 +162,31 @@ export function planInviteMedia(
     carouselTemplateSid?: string;
     carouselCardCount?: number;
     videoTemplateSid?: string;
+    videoLinkTemplateSid?: string;
   }
 ): InviteMediaPlan {
   const mediaType = event.mediaType ?? inferMediaType(event);
 
   if (mediaType === "video" || event.mediaType === "video") {
+    const videoUrl = clean(event.videoUrl);
+    const videoSizeBytes = event.videoSizeBytes;
+    if (videoSizeBytes !== undefined && videoSizeBytes > WHATSAPP_NATIVE_VIDEO_MAX_BYTES) {
+      if (!clean(env.videoLinkTemplateSid)) {
+        return { channel: "error", message: "Videos larger than 16 MB require an approved link template. Set TWILIO_CONTENT_EVENT_INVITE_VIDEO_LINK." };
+      }
+      if (!videoUrl) return { channel: "error", message: "Missing shareable video URL" };
+      return { channel: "videoLink", videoUrl };
+    }
     if (!clean(env.videoTemplateSid)) {
       return {
         channel: "error",
-        message:
-          "WhatsApp video invites require an approved video template. Set TWILIO_CONTENT_EVENT_INVITE_VIDEO.",
+        message: "WhatsApp video invites up to 16 MB require TWILIO_CONTENT_EVENT_INVITE_VIDEO.",
+      };
+    }
+    if (!clean(env.videoLinkTemplateSid)) {
+      return {
+        channel: "error",
+        message: "Video invitations also require an approved share-link template. Set TWILIO_CONTENT_EVENT_INVITE_VIDEO_LINK.",
       };
     }
     const videoPublicId = clean(event.videoPublicId);
