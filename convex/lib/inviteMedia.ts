@@ -2,7 +2,7 @@ export const CAROUSEL_MIN_SLIDES = 2;
 export const CAROUSEL_MAX_SLIDES = 10;
 export const WHATSAPP_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 export const WHATSAPP_NATIVE_VIDEO_MAX_BYTES = 16 * 1024 * 1024;
-export const WHATSAPP_VIDEO_MAX_SECONDS = 60;
+export const WHATSAPP_VIDEO_MAX_SECONDS = 4 * 60;
 
 export type MediaType = "image" | "carousel" | "video";
 
